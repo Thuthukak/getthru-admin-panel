@@ -60,7 +60,7 @@ Route::prefix('admin')->group(function () {
     Route::post('/newsletter', [NewsletterController::class, 'store'])->name('newsletter.store');
     Route::get('/contact-us', [HomeController::class, 'ContactIndex'])->name('contact.index');
    
-
+    Route::get('/reg-form', [HomeController::class, 'RegFormIndex'])->name('reg-form.index');
 
 // API Routes (Public API)
 Route::prefix('api')->group(function () {
@@ -103,6 +103,9 @@ Route::prefix('api')->group(function () {
     Route::get('/invoices/clients/list', [InvoiceController::class, 'getClients']); 
 
     Route::get('/invoices/profile/data', [ProfileController::class, 'show'])->name('profile.data');
+
+    // registration form
+    Route::get('/reg-form-submit', [HomeController::class, 'RegFormSubmit'])->name('reg-form.submit');
 
     
 });

@@ -3,18 +3,18 @@
 
     <!-- Logo Section -->
     <div class="flex items-center gap-3 mb-4">
-      <div class="bg-white text-white flex items-center justify-center rounded-lg min-w-[40px] h-10 p-1">
+      <div class=" text-white flex items-center justify-center rounded-lg min-w-[40px] h-10 p-1">
         <img 
           v-if="collapsed" 
-          src="/assets/images/p-logo.png" 
+          src="/assets/images/logo/get_thru_digital_logo1080.png" 
           alt="Logo" 
-          class="w-8 h-8"
+          class="w-10 h-8"
         >
         <img 
           v-else 
-          src="/assets/images/penda_logo2.png" 
+          src="/assets/images/logo/getthru_adminlogo.png" 
           alt="Logo" 
-          class="w-40 h-8"
+          class="w-40 h-22"
         >
       </div>
     </div>

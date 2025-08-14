@@ -1,5 +1,11 @@
 <template>
-    <Layout :seo="seo">
+  <Head>
+    <title>{{ seo.title }}</title>
+      <meta name="description" :content="seo.description" />
+      <meta name="keywords" :content="seo.keywords" />
+      <link rel="canonical" :href="seo.canonical_url" />
+  </Head>
+    <!-- <Layout :seo="seo"> -->
       <div class="container-fluid p-0">
         <div class="row min-vh-100 m-0">
           <!-- Hero Image (8 columns) -->
@@ -62,11 +68,12 @@
           </div>
         </div>
       </div>
-    </Layout>
+    <!-- </Layout> -->
   </template>
   
   <script>
   import Layout from "../Layouts/HomeLayout.vue";
+  import { Head } from '@inertiajs/vue3'
   import { ref } from "vue";
   import axios from "axios";
   
