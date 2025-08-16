@@ -1,5 +1,5 @@
 <template>
-  <aside class="bg-dark text-white h-full flex flex-col p-3 relative">
+  <aside class="bg-transparent text-white h-full flex flex-col p-3 relative">
 
     <!-- Logo Section -->
     <div class="flex items-center gap-3 mb-4">
@@ -94,6 +94,11 @@ export default {
           path: '/admin/dashboard',
           label: 'Dashboard',
           icon: ['fas', 'home'],
+        },
+        {
+          path: '/admin/installation',
+          label: 'Installations',
+          icon: ['fas', 'clipboard-list'],
         },
         {
           path: '/admin/quotations',

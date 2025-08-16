@@ -14,6 +14,8 @@ use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\RegistrationController;
+use App\Http\Controllers\InstallationController;
 use Inertia\Inertia;
 
 
@@ -84,6 +86,16 @@ Route::prefix('api')->group(function () {
     Route::post('estimates/bulk-email', [EstimateController::class, 'bulkSendEmails']);
     Route::get('estimates/{id}/pdf', [EstimateController::class, 'downloadPDF']);
     Route::delete('estimates/{id}', [EstimateController::class, 'destroy']);
+
+    //installations
+    Route::get('/installations', [InstallationController::class, 'index'])->name('installations.show');
+    Route::get('/installations/service-types', [InstallationController::class, 'getServiceTypes']);
+    Route::get('/installations/stats', [InstallationController::class, 'stats']);
+    Route::get('/installations/{id}', [InstallationController::class, 'show']);
+    Route::patch('/installations/{id}/status', [InstallationController::class, 'updateStatus']);
+    Route::put('/installations/{id}', [InstallationController::class, 'update']);
+    Route::delete('/installations/{id}', [InstallationController::class, 'destroy']);
+    Route::post('/installations/{id}/restore', [InstallationController::class, 'restore']);
     //invoices
     Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.show');
     Route::post('/invoices', [InvoiceController::class, 'store']); 
@@ -105,7 +117,7 @@ Route::prefix('api')->group(function () {
     Route::get('/invoices/profile/data', [ProfileController::class, 'show'])->name('profile.data');
 
     // registration form
-    Route::get('/reg-form-submit', [HomeController::class, 'RegFormSubmit'])->name('reg-form.submit');
+    Route::post('/reg-form-submit', [RegistrationController::class, 'store'])->name('reg-form.submit');
 
     
 });
