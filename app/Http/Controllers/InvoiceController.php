@@ -3,107 +3,133 @@
 namespace App\Http\Controllers;
 
 use App\Models\Invoice;
-use App\Models\Client;
-use App\Http\Requests\StoreInvoiceRequest;
-use App\Http\Requests\UpdateInvoiceRequest;
-use App\Http\Resources\InvoiceResource;
+use App\Models\Registration;
+use App\Services\InvoiceService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Log;
 
 class InvoiceController extends Controller
 {
+    protected $invoiceService;
+
+    public function __construct(InvoiceService $invoiceService)
+    {
+        $this->invoiceService = $invoiceService;
+    }
+
     /**
      * Display a listing of invoices with filtering and pagination
      */
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(Request $request): JsonResponse
     {
-        $query = Invoice::with(['client', 'items.service']);
-
-        // Status filter
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        // Client filter
-        if ($request->filled('client_id')) {
-            $query->where('client_id', $request->client_id);
-        }
-
-        // Date range filter
-        if ($request->filled('date_from')) {
-            $query->where('invoice_date', '>=', $request->date_from);
-        }
-        if ($request->filled('date_to')) {
-            $query->where('invoice_date', '<=', $request->date_to);
-        }
-
-        // Search by invoice number or client name
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('invoice_number', 'like', "%{$search}%")
-                  ->orWhereHas('client', function ($clientQuery) use ($search) {
-                      $clientQuery->where('name', 'like', "%{$search}%");
-                  });
-            });
-        }
-
-        // Overdue filter
-        if ($request->boolean('overdue_only')) {
-            $query->overdue();
-        }
-
-        // Sorting
-        $sortBy = $request->get('sort_by', 'created_at');
-        $sortOrder = $request->get('sort_order', 'desc');
+        Log::info('InvoiceController@index', $request->all());
         
-        $allowedSorts = ['invoice_number', 'invoice_date', 'due_date', 'status', 'total', 'created_at'];
-        if (in_array($sortBy, $allowedSorts)) {
-            $query->orderBy($sortBy, $sortOrder);
+        try {
+            $query = Invoice::with(['registration', 'emailLogs']);
+
+            // Apply filters
+            if ($request->has('status') && $request->status !== '') {
+                $query->where('status', $request->status);
+            }
+
+            if ($request->has('search') && $request->search !== '') {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('customer_name', 'like', "%{$search}%")
+                      ->orWhere('customer_email', 'like', "%{$search}%")
+                      ->orWhere('invoice_number', 'like', "%{$search}%");
+                });
+            }
+
+            if ($request->has('date_from') && $request->date_from !== '') {
+                $query->whereDate('billing_date', '>=', $request->date_from);
+            }
+
+            if ($request->has('date_to') && $request->date_to !== '') {
+                $query->whereDate('billing_date', '<=', $request->date_to);
+            }
+
+            if ($request->has('service_type') && $request->service_type !== '') {
+                $query->where('service_type', $request->service_type);
+            }
+
+            if ($request->has('overdue') && $request->overdue === 'true') {
+                $query->overdue();
+            }
+
+            // Sorting
+            $sortField = $request->get('sort_field', 'created_at');
+            $sortDirection = $request->get('sort_direction', 'desc');
+            $query->orderBy($sortField, $sortDirection);
+
+            // Pagination
+            $perPage = $request->get('per_page', 15);
+            $invoices = $query->paginate($perPage);
+
+            Log::info($invoices);
+            return response()->json([
+                'success' => true,
+                'data' => $invoices
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve invoices: ' . $e->getMessage()
+            ], 500);
         }
-
-        // Pagination
-        $perPage = $request->get('per_page', 15);
-        $invoices = $query->paginate($perPage);
-
-        return InvoiceResource::collection($invoices);
     }
 
     /**
      * Store a newly created invoice
      */
-    public function store(StoreInvoiceRequest $request): JsonResponse
+    public function store(Request $request): JsonResponse
     {
+        $request->validate([
+            'registration_id' => 'required|exists:registrations,id',
+            'amount' => 'required|numeric|min:0',
+            'billing_date' => 'required|date',
+            'due_date' => 'required|date|after_or_equal:billing_date',
+            'notes' => 'nullable|string|max:1000',
+            'is_recurring' => 'boolean'
+        ]);
+
         try {
-            $invoice = Invoice::create($request->validated());
+            $registration = Registration::findOrFail($request->registration_id);
 
-            // Add invoice items if provided
-            if ($request->has('items') && is_array($request->items)) {
-                foreach ($request->items as $index => $itemData) {
-                    $invoice->items()->create([
-                        'service_id' => $itemData['service_id'] ?? null,
-                        'description' => $itemData['description'],
-                        'quantity' => $itemData['quantity'] ?? 1,
-                        'unit_price' => $itemData['unit_price'],
-                        'sort_order' => $index,
-                    ]);
-                }
-            }
-
-            // Recalculate totals
-            $invoice->calculateTotals();
-            $invoice->save();
+            $invoice = Invoice::create([
+                'registration_id' => $registration->id,
+                'customer_name' => $registration->full_name,
+                'customer_email' => $registration->email,
+                'customer_phone' => $registration->phone,
+                'customer_address' => $registration->address,
+                'invoice_number' => (new Invoice())->generateInvoiceNumber(),
+                'service_type' => $registration->service_type,
+                'package' => $registration->package,
+                'amount' => $request->amount,
+                'payment_period' => $registration->payment_period,
+                'billing_date' => $request->billing_date,
+                'due_date' => $request->due_date,
+                'status' => 'pending',
+                'notes' => $request->notes,
+                'is_recurring' => $request->get('is_recurring', true),
+                'next_billing_date' => $request->get('is_recurring', true) 
+                    ? $this->calculateNextBillingDate($request->billing_date, $registration->payment_period)
+                    : null
+            ]);
 
             return response()->json([
+                'success' => true,
                 'message' => 'Invoice created successfully',
-                'invoice' => new InvoiceResource($invoice->load(['client', 'items.service']))
+                'data' => $invoice->load('registration')
             ], 201);
 
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Error creating invoice',
-                'error' => $e->getMessage()
+                'success' => false,
+                'message' => 'Failed to create invoice: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -113,185 +139,201 @@ class InvoiceController extends Controller
      */
     public function show(Invoice $invoice): JsonResponse
     {
-        $invoice->load(['client', 'items.service']);
-        
-        return response()->json([
-            'invoice' => new InvoiceResource($invoice)
-        ]);
+        try {
+            $invoice->load(['registration', 'emailLogs']);
+
+            return response()->json([
+                'success' => true,
+                'data' => $invoice
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invoice not found'
+            ], 404);
+        }
     }
 
     /**
      * Update the specified invoice
      */
-    public function update(UpdateInvoiceRequest $request, Invoice $invoice): JsonResponse
-    {
-        try {
-            // Prevent updating paid invoices
-            if ($invoice->status === 'paid' && !$request->boolean('force_update')) {
-                return response()->json([
-                    'message' => 'Cannot update paid invoice'
-                ], 422);
-            }
-
-            // Update invoice basic info
-            $invoice->update($request->validated());
-
-            // Update items if provided
-            if ($request->has('items') && is_array($request->items)) {
-                // Delete existing items
-                $invoice->items()->delete();
-                
-                // Add new items
-                foreach ($request->items as $index => $itemData) {
-                    $invoice->items()->create([
-                        'service_id' => $itemData['service_id'] ?? null,
-                        'description' => $itemData['description'],
-                        'quantity' => $itemData['quantity'] ?? 1,
-                        'unit_price' => $itemData['unit_price'],
-                        'sort_order' => $index,
-                    ]);
-                }
-            }
-
-            // Recalculate totals
-            $invoice->calculateTotals();
-            $invoice->save();
-
-            return response()->json([
-                'message' => 'Invoice updated successfully',
-                'invoice' => new InvoiceResource($invoice->load(['client', 'items.service']))
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Error updating invoice',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Remove the specified invoice
-     */
-    public function destroy(Invoice $invoice): JsonResponse
-    {
-        try {
-            // Prevent deleting paid invoices
-            if ($invoice->status === 'paid') {
-                return response()->json([
-                    'message' => 'Cannot delete paid invoice'
-                ], 422);
-            }
-
-            $invoice->delete();
-
-            return response()->json([
-                'message' => 'Invoice deleted successfully'
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Error deleting invoice',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Mark invoice as sent
-     */
-    public function markAsSent(Invoice $invoice): JsonResponse
-    {
-        try {
-            if ($invoice->status === 'paid') {
-                return response()->json([
-                    'message' => 'Invoice is already paid'
-                ], 422);
-            }
-
-            $invoice->markAsSent();
-
-            return response()->json([
-                'message' => 'Invoice marked as sent',
-                'invoice' => new InvoiceResource($invoice->load(['client', 'items.service']))
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Error updating invoice status',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Record payment for invoice
-     */
-    public function recordPayment(Request $request, Invoice $invoice): JsonResponse
+    public function update(Request $request, Invoice $invoice): JsonResponse
     {
         $request->validate([
-            'amount' => 'required|numeric|min:0.01|max:' . $invoice->balance,
-            'payment_method' => 'nullable|string|max:255',
-            'payment_notes' => 'nullable|string',
+            'amount' => 'sometimes|numeric|min:0',
+            'billing_date' => 'sometimes|date',
+            'due_date' => 'sometimes|date',
+            'status' => ['sometimes', Rule::in(['pending', 'sent', 'paid', 'overdue', 'cancelled'])],
+            'notes' => 'nullable|string|max:1000',
+            'is_recurring' => 'sometimes|boolean'
         ]);
 
         try {
-            $invoice->markAsPaid(
-                $request->amount,
-                $request->payment_method,
-                $request->payment_notes
-            );
+            $invoice->update($request->only([
+                'amount', 'billing_date', 'due_date', 'status', 'notes', 'is_recurring'
+            ]));
+
+            // Update next billing date if recurring status changed
+            if ($request->has('is_recurring')) {
+                $invoice->next_billing_date = $request->is_recurring 
+                    ? $this->calculateNextBillingDate($invoice->billing_date, $invoice->payment_period)
+                    : null;
+                $invoice->save();
+            }
+
+            // Update timestamps based on status
+            if ($request->has('status')) {
+                if ($request->status === 'sent' && !$invoice->sent_at) {
+                    $invoice->sent_at = now();
+                } elseif ($request->status === 'paid' && !$invoice->paid_at) {
+                    $invoice->paid_at = now();
+                }
+                $invoice->save();
+            }
 
             return response()->json([
-                'message' => 'Payment recorded successfully',
-                'invoice' => new InvoiceResource($invoice->load(['client', 'items.service']))
+                'success' => true,
+                'message' => 'Invoice updated successfully',
+                'data' => $invoice->load('registration')
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Error recording payment',
-                'error' => $e->getMessage()
+                'success' => false,
+                'message' => 'Failed to update invoice: ' . $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Duplicate an existing invoice
+     * Send invoice manually
      */
-    public function duplicate(Invoice $invoice): JsonResponse
+    public function sendInvoice(Request $request, Invoice $invoice): JsonResponse
     {
         try {
-            $newInvoice = $invoice->replicate();
-            $newInvoice->invoice_number = null; // Will be auto-generated
-            $newInvoice->status = 'draft';
-            $newInvoice->sent_at = null;
-            $newInvoice->paid_date = null;
-            $newInvoice->paid_amount = 0;
-            $newInvoice->balance = $newInvoice->total;
-            $newInvoice->invoice_date = now()->toDateString();
-            $newInvoice->due_date = now()->addDays(30)->toDateString();
-            $newInvoice->save();
+            $sent = $this->invoiceService->sendInvoice($invoice, true);
 
-            // Duplicate items
-            foreach ($invoice->items as $item) {
-                $newInvoice->items()->create([
-                    'service_id' => $item->service_id,
-                    'description' => $item->description,
-                    'quantity' => $item->quantity,
-                    'unit_price' => $item->unit_price,
-                    'sort_order' => $item->sort_order,
+            if ($sent) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Invoice sent successfully'
                 ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to send invoice'
+                ], 500);
             }
-
-            return response()->json([
-                'message' => 'Invoice duplicated successfully',
-                'invoice' => new InvoiceResource($newInvoice->load(['client', 'items.service']))
-            ], 201);
 
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Error duplicating invoice',
-                'error' => $e->getMessage()
+                'success' => false,
+                'message' => 'Failed to send invoice: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Send multiple invoices
+     */
+    public function sendBulkInvoices(Request $request): JsonResponse
+    {
+        $request->validate([
+            'invoice_ids' => 'required|array',
+            'invoice_ids.*' => 'exists:invoices,id'
+        ]);
+
+        try {
+            $sent = 0;
+            $failed = 0;
+
+            foreach ($request->invoice_ids as $invoiceId) {
+                $invoice = Invoice::find($invoiceId);
+                if ($invoice && $this->invoiceService->sendInvoice($invoice, true)) {
+                    $sent++;
+                } else {
+                    $failed++;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Invoices processed: {$sent} sent, {$failed} failed",
+                'sent' => $sent,
+                'failed' => $failed
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send bulk invoices: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate recurring invoices manually
+     */
+    public function generateRecurring(): JsonResponse
+    {
+        try {
+            $generated = $this->invoiceService->generateRecurringInvoices();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Generated {$generated} recurring invoices",
+                'generated' => $generated
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate recurring invoices: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Send automatic invoices (for scheduled task)
+     */
+    public function sendAutomatic(): JsonResponse
+    {
+        try {
+            $sent = $this->invoiceService->sendAutomaticInvoices();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Sent {$sent} automatic invoices",
+                'sent' => $sent
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send automatic invoices: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Mark overdue invoices
+     */
+    public function markOverdue(): JsonResponse
+    {
+        try {
+            $marked = $this->invoiceService->markOverdueInvoices();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Marked {$marked} invoices as overdue",
+                'marked' => $marked
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to mark overdue invoices: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -299,55 +341,90 @@ class InvoiceController extends Controller
     /**
      * Get invoice statistics
      */
-    public function statistics(Request $request): JsonResponse
+    public function stats(): JsonResponse
     {
-        $query = Invoice::query();
+        try {
+            $stats = $this->invoiceService->getInvoiceStats();
 
-        // Date range filter for statistics
-        if ($request->filled('date_from')) {
-            $query->where('invoice_date', '>=', $request->date_from);
+            return response()->json([
+                'success' => true,
+                'data' => $stats
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get invoice statistics: ' . $e->getMessage()
+            ], 500);
         }
-        if ($request->filled('date_to')) {
-            $query->where('invoice_date', '<=', $request->date_to);
-        }
-
-        $stats = [
-            'total_invoices' => (clone $query)->count(),
-            'draft_invoices' => (clone $query)->where('status', 'draft')->count(),
-            'sent_invoices' => (clone $query)->where('status', 'sent')->count(),
-            'paid_invoices' => (clone $query)->where('status', 'paid')->count(),
-            'overdue_invoices' => (clone $query)->overdue()->count(),
-            'total_revenue' => (clone $query)->where('status', 'paid')->sum('total'),
-            'pending_revenue' => (clone $query)->whereIn('status', ['sent', 'overdue'])->sum('balance'),
-            'average_invoice_value' => (clone $query)->avg('total'),
-        ];
-
-        // Recent invoices
-        $recentInvoices = (clone $query)
-            ->with(['client'])
-            ->orderBy('created_at', 'desc')
-            ->take(5)
-            ->get();
-
-        return response()->json([
-            'statistics' => $stats,
-            'recent_invoices' => InvoiceResource::collection($recentInvoices)
-        ]);
     }
 
     /**
-     * Get clients for invoice creation
+     * Delete invoice
      */
-    public function getClients(Request $request): JsonResponse
+    public function destroy(Invoice $invoice): JsonResponse
     {
-        $clients = Client::select('id', 'name', 'email')
-            ->when($request->filled('search'), function ($query) use ($request) {
-                $query->where('name', 'like', '%' . $request->search . '%')
-                      ->orWhere('email', 'like', '%' . $request->search . '%');
-            })
-            ->orderBy('name')
-            ->get();
+        try {
+            $invoice->delete();
 
-        return response()->json($clients);
+            return response()->json([
+                'success' => true,
+                'message' => 'Invoice deleted successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete invoice: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get registrations for invoice creation
+     */
+    public function getRegistrations(): JsonResponse
+    {
+        try {
+            $registrations = Registration::where('status', 'processed')
+                ->select('id', 'name', 'surname', 'email', 'service_type', 'package')
+                ->get()
+                ->map(function ($registration) {
+                    return [
+                        'id' => $registration->id,
+                        'name' => $registration->full_name,
+                        'email' => $registration->email,
+                        'service_type' => $registration->service_type,
+                        'package' => $registration->package
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => $registrations
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get registrations: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Calculate next billing date helper
+     */
+    private function calculateNextBillingDate($currentBillingDate, $paymentPeriod)
+    {
+        $date = \Carbon\Carbon::parse($currentBillingDate);
+
+        if ($paymentPeriod === '1st of every month') {
+            return $date->addMonth()->startOfMonth();
+        } elseif ($paymentPeriod === '15th of every month') {
+            return $date->addMonth()->day(15);
+        }
+
+        return null;
     }
 }

@@ -1,800 +1,1236 @@
 <template>
-  <div class="invoice-manager">
-    <!-- Header Section -->
-    <div class="header-section">
-      <div class="header-content">
-        <h1 class="page-title">Invoice Management</h1>
-        <button @click="showCreateModal = true" class="btn btn-primary">
-          <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-          </svg>
+  <div class="invoice-management">
+    <div class="page-header">
+      <h1 class="page-title">Invoice Management</h1>
+      <div class="header-actions">
+        <button 
+          @click="generateRecurring" 
+          class="btn btn-outline"
+          :disabled="loading"
+        >
+          Generate Recurring
+        </button>
+        <button 
+          @click="sendAutomatic" 
+          class="btn btn-outline"
+          :disabled="loading"
+        >
+          Send Automatic
+        </button>
+        <button 
+          @click="markOverdue" 
+          class="btn btn-outline"
+          :disabled="loading"
+        >
+          Mark Overdue
+        </button>
+        <button 
+          @click="showCreateModal = true" 
+          class="btn btn-primary"
+        >
           Create Invoice
         </button>
       </div>
-      
-      <!-- Statistics Cards -->
-      <div class="stats-grid" v-if="statistics">
-        <div class="stat-card">
-          <div class="stat-value">{{ statistics.total_invoices }}</div>
-          <div class="stat-label">Total Invoices</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">R{{ formatCurrency(statistics.total_revenue) }}</div>
-          <div class="stat-label">Total Revenue</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">R{{ formatCurrency(statistics.pending_revenue) }}</div>
-          <div class="stat-label">Pending Revenue</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">{{ statistics.overdue_invoices }}</div>
-          <div class="stat-label">Overdue</div>
-        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value">{{ stats.total_invoices || 0 }}</div>
+        <div class="stat-label">Total Invoices</div>
+      </div>
+      <div class="stat-card pending">
+        <div class="stat-value">{{ stats.pending_invoices || 0 }}</div>
+        <div class="stat-label">Pending</div>
+      </div>
+      <div class="stat-card sent">
+        <div class="stat-value">{{ stats.sent_invoices || 0 }}</div>
+        <div class="stat-label">Sent</div>
+      </div>
+      <div class="stat-card paid">
+        <div class="stat-value">{{ stats.paid_invoices || 0 }}</div>
+        <div class="stat-label">Paid</div>
+      </div>
+      <div class="stat-card overdue">
+        <div class="stat-value">{{ stats.overdue_invoices || 0 }}</div>
+        <div class="stat-label">Overdue</div>
       </div>
     </div>
 
-    <!-- Filters Section -->
+    <!-- Revenue Stats -->
+    <div class="revenue-stats">
+      <div class="revenue-card">
+        <div class="revenue-value">R{{ formatAmount(stats.total_revenue) || '0.00' }}</div>
+        <div class="revenue-label">Total Revenue</div>
+      </div>
+      <div class="revenue-card">
+        <div class="revenue-value">R{{ formatAmount(stats.pending_revenue) || '0.00' }}</div>
+        <div class="revenue-label">Pending Revenue</div>
+      </div>
+      <div class="revenue-card">
+        <div class="revenue-value">R{{ formatAmount(stats.overdue_revenue) || '0.00' }}</div>
+        <div class="revenue-label">Overdue Revenue</div>
+      </div>
+    </div>
+
+    <!-- Filters -->
     <div class="filters-section">
-      <div class="filters-grid">
+      <div class="filters-row">
         <div class="filter-group">
-          <label>Search</label>
           <input 
             v-model="filters.search" 
-            type="text" 
-            placeholder="Invoice number or client name..."
-            class="form-input"
+            placeholder="Search invoices..."
+            class="input-field"
             @input="debouncedSearch"
-          />
+          >
         </div>
-        
         <div class="filter-group">
-          <label>Status</label>
-          <select v-model="filters.status" class="form-select" @change="loadInvoices">
-            <option value="">All Statuses</option>
-            <option value="draft">Draft</option>
+          <select v-model="filters.status" @change="applyFilters" class="select-field">
+            <option value="">All Status</option>
+            <option value="pending">Pending</option>
             <option value="sent">Sent</option>
             <option value="paid">Paid</option>
             <option value="overdue">Overdue</option>
+            <option value="cancelled">Cancelled</option>
           </select>
         </div>
-        
         <div class="filter-group">
-          <label>Client</label>
-          <select v-model="filters.client_id" class="form-select" @change="loadInvoices">
-            <option value="">All Clients</option>
-            <option v-for="client in clients" :key="client.id" :value="client.id">
-              {{ client.name }}
-            </option>
+          <select v-model="filters.service_type" @change="applyFilters" class="select-field">
+            <option value="">All Services</option>
+            <option value="fiber">Fiber</option>
+            <option value="adsl">ADSL</option>
+            <option value="wireless">Wireless</option>
           </select>
         </div>
-        
         <div class="filter-group">
-          <label>Date From</label>
           <input 
             v-model="filters.date_from" 
-            type="date" 
-            class="form-input"
-            @change="loadInvoices"
-          />
+            type="date"
+            class="input-field"
+            @change="applyFilters"
+          >
         </div>
-        
         <div class="filter-group">
-          <label>Date To</label>
           <input 
             v-model="filters.date_to" 
-            type="date" 
-            class="form-input"
-            @change="loadInvoices"
-          />
+            type="date"
+            class="input-field"
+            @change="applyFilters"
+          >
         </div>
-        
         <div class="filter-group">
           <label class="checkbox-label">
             <input 
-              v-model="filters.overdue_only" 
+              v-model="filters.overdue" 
               type="checkbox"
-              @change="loadInvoices"
-            />
+              @change="applyFilters"
+            >
             Overdue Only
           </label>
         </div>
       </div>
     </div>
 
-    <!-- Invoices Table -->
-    <div class="table-section">
-      <div class="table-header">
-        <h3>Invoices</h3>
-        <div class="table-controls">
-          <select v-model="pagination.per_page" @change="loadInvoices" class="form-select-sm">
-            <option value="15">15 per page</option>
-            <option value="25">25 per page</option>
-            <option value="50">50 per page</option>
-            <option value="100">100 per page</option>
-          </select>
-        </div>
-      </div>
+    <!-- Bulk Actions -->
+    <div v-if="selectedInvoices.length > 0" class="bulk-actions">
+      <span>{{ selectedInvoices.length }} selected</span>
+      <button @click="sendBulkInvoices" class="btn btn-outline">Send Selected</button>
+      <button @click="selectedInvoices = []" class="btn btn-outline">Clear Selection</button>
+    </div>
 
-      <div class="table-container">
-        <table class="invoice-table">
-          <thead>
-            <tr>
-              <th @click="sort('invoice_number')" class="sortable">
-                Invoice #
-                <span class="sort-indicator" :class="getSortClass('invoice_number')"></span>
-              </th>
-              <th>Client</th>
-              <th @click="sort('invoice_date')" class="sortable">
-                Date
-                <span class="sort-indicator" :class="getSortClass('invoice_date')"></span>
-              </th>
-              <th @click="sort('due_date')" class="sortable">
-                Due Date
-                <span class="sort-indicator" :class="getSortClass('due_date')"></span>
-              </th>
-              <th @click="sort('total')" class="sortable">
-                Total
-                <span class="sort-indicator" :class="getSortClass('total')"></span>
-              </th>
-              <th @click="sort('status')" class="sortable">
-                Status
-                <span class="sort-indicator" :class="getSortClass('status')"></span>
-              </th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="loading">
-              <td colspan="7" class="loading-row">Loading invoices...</td>
-            </tr>
-            <tr v-else-if="invoices.length === 0">
-              <td colspan="7" class="empty-row">No invoices found</td>
-            </tr>
-            <tr v-else v-for="invoice in invoices" :key="invoice.id" class="invoice-row">
-              <td class="invoice-number">{{ invoice.invoice_number }}</td>
-              <td>{{ invoice.client?.name }}</td>
-              <td>{{ formatDate(invoice.invoice_date) }}</td>
-              <td>{{ formatDate(invoice.due_date) }}</td>
-              <td class="amount">R{{ formatCurrency(invoice.total) }}</td>
-              <td>
-                <span class="status-badge" :class="'status-' + invoice.status">
-                  {{ formatStatus(invoice.status) }}
-                </span>
-              </td>
-              <td>
-                <div class="actions">
-                  <button @click="viewInvoice(invoice)" class="btn-icon" title="View">
-                    <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                    </svg>
-                  </button>
-                  <button @click="editInvoice(invoice)" class="btn-icon" title="Edit">
-                    <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                    </svg>
-                  </button>
-                  <button @click="duplicateInvoice(invoice)" class="btn-icon" title="Duplicate">
-                    <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                    </svg>
-                  </button>
-                  <div class="invoice-dropdown">
-                    <button @click.stop="toggleDropdown(invoice.id, $event)" class="btn-icon">
-                      <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
-                      </svg>
-                    </button>
-                    <div v-show="showDropdown && dropdownInvoiceId === invoice.id" class="invoice-dropdown-menu">
-                      <button v-if="invoice.status === 'draft'" @click.stop="markAsSent(invoice)" class="invoice-dropdown-item">
-                        Mark as Sent
-                      </button>
-                      <button v-if="invoice.status !== 'paid'" @click.stop="showPaymentModal(invoice)" class="invoice-dropdown-item">
-                        Record Payment
-                      </button>
-                      <button v-if="invoice.status !== 'paid'" @click.stop="deleteInvoice(invoice)" class="invoice-dropdown-item danger">
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    <!-- Invoice Table -->
+    <div class="table-container">
+      <table class="invoice-table">
+        <thead>
+          <tr>
+            <th>
+              <input 
+                type="checkbox" 
+                @change="toggleAllSelection"
+                :checked="isAllSelected"
+              >
+            </th>
+            <th @click="sort('invoice_number')" class="sortable">
+              Invoice #
+              <span v-if="sortField === 'invoice_number'" class="sort-arrow">
+                {{ sortDirection === 'asc' ? '↑' : '↓' }}
+              </span>
+            </th>
+            <th @click="sort('customer_name')" class="sortable">
+              Customer
+              <span v-if="sortField === 'customer_name'" class="sort-arrow">
+                {{ sortDirection === 'asc' ? '↑' : '↓' }}
+              </span>
+            </th>
+            <th @click="sort('service_type')" class="sortable">
+              Service
+              <span v-if="sortField === 'service_type'" class="sort-arrow">
+                {{ sortDirection === 'asc' ? '↑' : '↓' }}
+              </span>
+            </th>
+            <th @click="sort('amount')" class="sortable">
+              Amount
+              <span v-if="sortField === 'amount'" class="sort-arrow">
+                {{ sortDirection === 'asc' ? '↑' : '↓' }}
+              </span>
+            </th>
+            <th @click="sort('billing_date')" class="sortable">
+              Billing Date
+              <span v-if="sortField === 'billing_date'" class="sort-arrow">
+                {{ sortDirection === 'asc' ? '↑' : '↓' }}
+              </span>
+            </th>
+            <th @click="sort('due_date')" class="sortable">
+              Due Date
+              <span v-if="sortField === 'due_date'" class="sort-arrow">
+                {{ sortDirection === 'asc' ? '↑' : '↓' }}
+              </span>
+            </th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="loading && invoices.length === 0">
+            <td colspan="9" class="text-center">Loading...</td>
+          </tr>
+          <tr v-else-if="invoices.length === 0">
+            <td colspan="9" class="text-center">No invoices found</td>
+          </tr>
+          <tr 
+            v-for="invoice in invoices" 
+            :key="invoice.id"
+            :class="{ 'selected': selectedInvoices.includes(invoice.id) }"
+          >
+            <td>
+              <input 
+                type="checkbox" 
+                :checked="selectedInvoices.includes(invoice.id)"
+                @change="toggleSelection(invoice.id)"
+              >
+            </td>
+            <td>{{ invoice.invoice_number }}</td>
+            <td>{{ invoice.customer_name }}</td>
+            <td>{{ formatServiceType(invoice.service_type) }} - {{ invoice.package }}</td>
+            <td>R{{ formatAmount(invoice.amount) }}</td>
+            <td>{{ formatDate(invoice.billing_date) }}</td>
+            <td>{{ formatDate(invoice.due_date) }}</td>
+            <td>
+              <span :class="`status-badge status-${invoice.status}`">
+                {{ formatStatus(invoice.status) }}
+              </span>
+            </td>
+            <td class="actions">
+              <button 
+                @click="viewInvoice(invoice)" 
+                class="btn btn-sm btn-outline"
+                title="View"
+              >
+                👁️
+              </button>
+              <button 
+                @click="sendSingleInvoice(invoice)" 
+                class="btn btn-sm btn-outline"
+                :disabled="invoice.status === 'paid'"
+                title="Send"
+              >
+                📧
+              </button>
+              <button 
+                @click="editInvoice(invoice)" 
+                class="btn btn-sm btn-outline"
+                title="Edit"
+              >
+                ✏️
+              </button>
+              <button 
+                @click="markAsPaid(invoice)" 
+                class="btn btn-sm btn-success"
+                v-if="invoice.status !== 'paid'"
+                title="Mark as Paid"
+              >
+                ✓
+              </button>
+              <button 
+                @click="deleteInvoice(invoice)" 
+                class="btn btn-sm btn-danger"
+                title="Delete"
+              >
+                🗑️
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
-      <!-- Pagination -->
-      <div v-if="pagination.total > 0" class="pagination">
-        <div class="pagination-info">
-          Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }} results
+    <!-- Pagination -->
+    <div v-if="pagination.total > pagination.per_page" class="pagination">
+      <button 
+        @click="changePage(pagination.current_page - 1)"
+        :disabled="pagination.current_page <= 1"
+        class="btn btn-outline btn-sm"
+      >
+        Previous
+      </button>
+      <span class="page-info">
+        Page {{ pagination.current_page }} of {{ pagination.last_page }}
+        ({{ pagination.total }} total)
+      </span>
+      <button 
+        @click="changePage(pagination.current_page + 1)"
+        :disabled="pagination.current_page >= pagination.last_page"
+        class="btn btn-outline btn-sm"
+      >
+        Next
+      </button>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div v-if="showCreateModal || showEditModal" class="modal-overlay" @click="closeModals">
+      <div class="modal" @click.stop>
+        <div class="modal-header">
+          <h3>{{ showCreateModal ? 'Create Invoice' : 'Edit Invoice' }}</h3>
+          <button @click="closeModals" class="modal-close">×</button>
         </div>
-        <div class="pagination-controls">
-          <button 
-            @click="changePage(pagination.current_page - 1)" 
-            :disabled="pagination.current_page <= 1"
-            class="btn btn-secondary"
-          >
-            Previous
-          </button>
-          <span class="page-info">
-            Page {{ pagination.current_page }} of {{ pagination.last_page }}
-          </span>
-          <button 
-            @click="changePage(pagination.current_page + 1)" 
-            :disabled="pagination.current_page >= pagination.last_page"
-            class="btn btn-secondary"
-          >
-            Next
-          </button>
+        <div class="modal-body">
+          <form @submit.prevent="submitForm">
+            <div class="form-group" v-if="showCreateModal">
+              <label>Customer</label>
+              <select v-model="form.registration_id" class="select-field" required>
+                <option value="">Select Customer</option>
+                <option 
+                  v-for="reg in registrations" 
+                  :key="reg.id" 
+                  :value="reg.id"
+                >
+                  {{ reg.name }} - {{ reg.email }}
+                </option>
+              </select>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Amount</label>
+                <input 
+                  v-model="form.amount" 
+                  type="number" 
+                  step="0.01" 
+                  class="input-field" 
+                  required
+                >
+              </div>
+              <div class="form-group">
+                <label>Billing Date</label>
+                <input 
+                  v-model="form.billing_date" 
+                  type="date" 
+                  class="input-field" 
+                  required
+                >
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Due Date</label>
+                <input 
+                  v-model="form.due_date" 
+                  type="date" 
+                  class="input-field" 
+                  required
+                >
+              </div>
+              <div class="form-group" v-if="showEditModal">
+                <label>Status</label>
+                <select v-model="form.status" class="select-field">
+                  <option value="pending">Pending</option>
+                  <option value="sent">Sent</option>
+                  <option value="paid">Paid</option>
+                  <option value="overdue">Overdue</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Notes</label>
+              <textarea v-model="form.notes" class="textarea-field" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input v-model="form.is_recurring" type="checkbox">
+                Recurring Invoice
+              </label>
+            </div>
+            <div class="modal-actions">
+              <button type="button" @click="closeModals" class="btn btn-outline">
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-primary" :disabled="loading">
+                {{ showCreateModal ? 'Create' : 'Update' }}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
 
-    <!-- Create/Edit Invoice Modal -->
-    <InvoiceCreateEditModal 
-      :show="showCreateModal || showEditModal"
-      :is-editing="showEditModal"
-      :invoice="selectedInvoice"
-      :services="services"
-      :clients="clients"
-      :saving="saving"
-      @close="closeModals"
-      @save="handleSaveInvoice"
-    />
+    <!-- View Modal -->
+    <div v-if="showViewModal" class="modal-overlay" @click="closeModals">
+      <div class="modal modal-lg" @click.stop>
+        <div class="modal-header">
+          <h3>Invoice Details</h3>
+          <button @click="closeModals" class="modal-close">×</button>
+        </div>
+        <div class="modal-body" v-if="selectedInvoice">
+          <div class="invoice-details">
+            <div class="detail-section">
+              <h4>Invoice Information</h4>
+              <div class="detail-grid">
+                <div class="detail-item">
+                  <label>Invoice Number:</label>
+                  <span>{{ selectedInvoice.invoice_number }}</span>
+                </div>
+                <div class="detail-item">
+                  <label>Amount:</label>
+                  <span>R{{ formatAmount(selectedInvoice.amount) }}</span>
+                </div>
+                <div class="detail-item">
+                  <label>Status:</label>
+                  <span :class="`status-badge status-${selectedInvoice.status}`">
+                    {{ formatStatus(selectedInvoice.status) }}
+                  </span>
+                </div>
+                <div class="detail-item">
+                  <label>Billing Date:</label>
+                  <span>{{ formatDate(selectedInvoice.billing_date) }}</span>
+                </div>
+                <div class="detail-item">
+                  <label>Due Date:</label>
+                  <span>{{ formatDate(selectedInvoice.due_date) }}</span>
+                </div>
+                <div class="detail-item">
+                  <label>Payment Period:</label>
+                  <span>{{ selectedInvoice.payment_period }}</span>
+                </div>
+              </div>
+            </div>
 
-    <!-- Invoice Payment Modal -->
-   <InvoicePaymentModal 
-      :show="showPaymentModalFlag"
-      :invoice="selectedInvoice"
-      @close="closePaymentModal"
-    />
+            <div class="detail-section">
+              <h4>Customer Information</h4>
+              <div class="detail-grid">
+                <div class="detail-item">
+                  <label>Name:</label>
+                  <span>{{ selectedInvoice.customer_name }}</span>
+                </div>
+                <div class="detail-item">
+                  <label>Email:</label>
+                  <span>{{ selectedInvoice.customer_email }}</span>
+                </div>
+                <div class="detail-item">
+                  <label>Phone:</label>
+                  <span>{{ selectedInvoice.customer_phone }}</span>
+                </div>
+                <div class="detail-item">
+                  <label>Service:</label>
+                  <span>{{ formatServiceType(selectedInvoice.service_type) }} - {{ selectedInvoice.package }}</span>
+                </div>
+              </div>
+            </div>
 
-    <!-- Invoice View Modal -->
-    <InvoiceViewModal 
-      :show="showViewModal"
-      :invoice="selectedInvoice"
-      @close="closeModals"
-    />
+            <div class="detail-section" v-if="selectedInvoice.notes">
+              <h4>Notes</h4>
+              <p>{{ selectedInvoice.notes }}</p>
+            </div>
+
+            <div class="detail-section" v-if="selectedInvoice.email_logs && selectedInvoice.email_logs.length">
+              <h4>Email History</h4>
+              <div class="email-logs">
+                <div 
+                  v-for="log in selectedInvoice.email_logs" 
+                  :key="log.id"
+                  class="email-log-item"
+                >
+                  <div class="log-status" :class="log.status">{{ log.status }}</div>
+                  <div class="log-date">{{ formatDateTime(log.sent_at) }}</div>
+                  <div class="log-email">{{ log.email }}</div>
+                  <div v-if="log.error_message" class="log-error">{{ log.error_message }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container">
+      <div 
+        v-for="toast in toasts" 
+        :key="toast.id"
+        :class="`toast toast-${toast.type}`"
+      >
+        {{ toast.message }}
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
-import { ref, reactive, onMounted, onUnmounted  ,watch } from 'vue'
-import InvoiceCreateEditModal from './InvoiceCreateEditModal.vue'
-import InvoiceViewModal from './InvoiceViewModal.vue'
-import InvoicePaymentModal from './InvoicePaymentModal.vue'
+import { ref, reactive, onMounted, onUnmounted, watch, computed } from 'vue'
 
 export default {
-  name: 'Invoice',
-  components: {
-    InvoiceCreateEditModal,
-    InvoiceViewModal,
-    InvoicePaymentModal,
-  },
+  name: 'InvoiceManagement',
   setup() {
     // Reactive data
-    const invoices = ref([])
-    const clients = ref([])
-    const statistics = ref(null)
     const loading = ref(false)
-    const saving = ref(false)
-    const services = ref([])
+    const invoices = ref([])
+    const registrations = ref([])
+    const selectedInvoices = ref([])
+    const selectedInvoice = ref(null)
+    const toasts = ref([])
+    let searchTimeout = null
     
     // Modal states
     const showCreateModal = ref(false)
     const showEditModal = ref(false)
     const showViewModal = ref(false)
-    const showPaymentModalFlag = ref(false)
-    const selectedInvoice = ref(null)
-    const activeDropdown = ref(null)
-    const showDropdown = ref(false)
-    const dropdownInvoiceId = ref(null)
-
-    // Filters and pagination
+    
+    // Statistics
+    const stats = reactive({
+      total_invoices: 0,
+      pending_invoices: 0,
+      sent_invoices: 0,
+      paid_invoices: 0,
+      overdue_invoices: 0,
+      total_revenue: 0,
+      pending_revenue: 0,
+      overdue_revenue: 0
+    })
+    
+    // Filters
     const filters = reactive({
       search: '',
       status: '',
-      client_id: '',
+      service_type: '',
       date_from: '',
       date_to: '',
-      overdue_only: false
+      overdue: false
     })
-
-    const sorting = reactive({
-      sort_by: 'created_at',
-      sort_order: 'desc'
-    })
-
+    
+    // Pagination
     const pagination = reactive({
       current_page: 1,
-      per_page: 15,
-      total: 0,
       last_page: 1,
-      from: 0,
-      to: 0
+      per_page: 15,
+      total: 0
     })
-
-    // Forms
-    const invoiceForm = reactive({
-      client_id: '',
-      invoice_date: '',
+    
+    // Sorting
+    const sortField = ref('created_at')
+    const sortDirection = ref('desc')
+    
+    // Form data
+    const form = reactive({
+      registration_id: '',
+      amount: '',
+      billing_date: '',
       due_date: '',
+      status: 'pending',
       notes: '',
-      items: [
-        { description: '', quantity: 1, unit_price: 0 }
-      ]
+      is_recurring: true
     })
-
-    const paymentForm = reactive({
-      amount: 0,
-      payment_method: '',
-      payment_notes: ''
+    
+    // Computed properties
+    const isAllSelected = computed(() => {
+      return invoices.value.length > 0 && selectedInvoices.value.length === invoices.value.length
     })
-
-    // API functions
-    const api = {
-      async get(url, params = {}) {
-        const query = new URLSearchParams(params).toString()
-        const response = await fetch(`/api/invoices${url}${query ? '?' + query : ''}`)
-        if (!response.ok) throw new Error('API request failed')
-        return response.json()
-      },
-
-      async post(url, data) {
-        const response = await fetch(`/api/invoices${url}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        })
-        if (!response.ok) throw new Error('API request failed')
-        return response.json()
-      },
-
-      async put(url, data) {
-        const response = await fetch(`/api/invoices${url}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        })
-        if (!response.ok) throw new Error('API request failed')
-        return response.json()
-      },
-
-      async delete(url) {
-        const response = await fetch(`/api/invoices${url}`, {
-          method: 'DELETE'
-        })
-        if (!response.ok) throw new Error('API request failed')
-        return response.json()
-      }
-    }
-
-    // Methods
-    const loadInvoices = async () => {
+    
+    // API methods
+    const fetchInvoices = async (page = 1) => {
       loading.value = true
       try {
-        const params = {
-          ...filters,
-          ...sorting,
-          page: pagination.current_page,
-          per_page: pagination.per_page
-        }
-        
-        const response = await api.get('', params)
-        invoices.value = response.data
-        
-        // Update pagination
-        Object.assign(pagination, {
-          current_page: response.current_page,
-          total: response.total,
-          last_page: response.last_page,
-          from: response.from,
-          to: response.to
+        const params = new URLSearchParams({
+          page: page.toString(),
+          per_page: pagination.per_page.toString(),
+          sort_field: sortField.value,
+          sort_direction: sortDirection.value,
+          ...filters
         })
+        
+        const response = await fetch(`/api/invoices?${params}`)
+        const data = await response.json()
+        
+        if (data.success) {
+          invoices.value = data.data.data
+          pagination.current_page = data.data.current_page
+          pagination.last_page = data.data.last_page
+          pagination.total = data.data.total
+        } else {
+          showToast('Failed to fetch invoices', 'error')
+        }
       } catch (error) {
-        console.error('Error loading invoices:', error)
+        showToast('Error fetching invoices', 'error')
+        console.error('Error:', error)
       } finally {
         loading.value = false
       }
     }
-
-    const loadClients = async () => {
+    
+    const fetchStats = async () => {
       try {
-        const response = await api.get('/clients')
-        clients.value = response
-      } catch (error) {
-        console.error('Error loading clients:', error)
-      }
-    }
-
-    const loadStatistics = async () => {
-      try {
-        const response = await api.get('/') //api/invoices/statistics
-        statistics.value = response.statistics
-      } catch (error) {
-        console.error('Error loading statistics:', error)
-      }
-    }
-
-    const loadServices = async () => {
-      try {
-        const response = await api.get('/api/services')
-        services.value = response
-      } catch (error) {
-        console.error('Error loading services:', error)
-      }
-    }
-
-
-    const handleSaveInvoice = async (formData) => {
-      saving.value = true
-      try {
-        if (showCreateModal.value) {
-          await api.post('', formData)
-        } else {
-          await api.put(`/${selectedInvoice.value.id}`, formData)
+        const response = await fetch('/api/invoices/stats')
+        const data = await response.json()
+        
+        if (data.success) {
+          Object.assign(stats, data.data)
         }
-        closeModals()
-        loadInvoices()
-        loadStatistics()
       } catch (error) {
-        console.error('Error saving invoice:', error)
-      } finally {
-        saving.value = false
+        console.error('Error fetching stats:', error)
       }
     }
-
-    const viewInvoice = async (invoice) => {
+    
+    const fetchRegistrations = async () => {
       try {
-        const response = await api.get(`/${invoice.id}`)
-        selectedInvoice.value = response.invoice
-        showViewModal.value = true
+        const response = await fetch('/api/invoices/registrations')
+        const data = await response.json()
+        
+        if (data.success) {
+          registrations.value = data.data
+        }
       } catch (error) {
-        console.error('Error loading invoice:', error)
+        console.error('Error fetching registrations:', error)
       }
     }
-
+    
+    // CRUD operations
+    const createInvoice = async () => {
+      loading.value = true
+      try {
+        const response = await fetch('/api/invoices', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+          },
+          body: JSON.stringify(form)
+        })
+        
+        const data = await response.json()
+        
+        if (data.success) {
+          showToast('Invoice created successfully', 'success')
+          closeModals()
+          resetForm()
+          fetchInvoices()
+          fetchStats()
+        } else {
+          showToast(data.message || 'Failed to create invoice', 'error')
+        }
+      } catch (error) {
+        showToast('Error creating invoice', 'error')
+        console.error('Error:', error)
+      } finally {
+        loading.value = false
+      }
+    }
+    
+    const updateInvoice = async () => {
+      loading.value = true
+      try {
+        const response = await fetch(`/api/invoices/${selectedInvoice.value.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+          },
+          body: JSON.stringify(form)
+        })
+        
+        const data = await response.json()
+        
+        if (data.success) {
+          showToast('Invoice updated successfully', 'success')
+          closeModals()
+          fetchInvoices()
+          fetchStats()
+        } else {
+          showToast(data.message || 'Failed to update invoice', 'error')
+        }
+      } catch (error) {
+        showToast('Error updating invoice', 'error')
+        console.error('Error:', error)
+      } finally {
+        loading.value = false
+      }
+    }
+    
+    const deleteInvoice = async (invoice) => {
+      if (!confirm(`Are you sure you want to delete invoice ${invoice.invoice_number}?`)) {
+        return
+      }
+      
+      loading.value = true
+      try {
+        const response = await fetch(`/api/invoices/${invoice.id}`, {
+          method: 'DELETE',
+          headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+          }
+        })
+        
+        const data = await response.json()
+        
+        if (data.success) {
+          showToast('Invoice deleted successfully', 'success')
+          fetchInvoices()
+          fetchStats()
+        } else {
+          showToast(data.message || 'Failed to delete invoice', 'error')
+        }
+      } catch (error) {
+        showToast('Error deleting invoice', 'error')
+        console.error('Error:', error)
+      } finally {
+        loading.value = false
+      }
+    }
+    
+    const sendSingleInvoice = async (invoice) => {
+      loading.value = true
+      try {
+        const response = await fetch(`/api/invoices/${invoice.id}/send`, {
+          method: 'POST',
+          headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+          }
+        })
+        
+        const data = await response.json()
+        
+        if (data.success) {
+          showToast('Invoice sent successfully', 'success')
+          fetchInvoices()
+          fetchStats()
+        } else {
+          showToast(data.message || 'Failed to send invoice', 'error')
+        }
+      } catch (error) {
+        showToast('Error sending invoice', 'error')
+        console.error('Error:', error)
+      } finally {
+        loading.value = false
+      }
+    }
+    
+    const sendBulkInvoices = async () => {
+      loading.value = true
+      try {
+        const response = await fetch('/api/invoices/send-bulk', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+          },
+          body: JSON.stringify({ invoice_ids: selectedInvoices.value })
+        })
+        
+        const data = await response.json()
+        
+        if (data.success) {
+          showToast(data.message, 'success')
+          selectedInvoices.value = []
+          fetchInvoices()
+          fetchStats()
+        } else {
+          showToast(data.message || 'Failed to send invoices', 'error')
+        }
+      } catch (error) {
+        showToast('Error sending bulk invoices', 'error')
+        console.error('Error:', error)
+      } finally {
+        loading.value = false
+      }
+    }
+    
+    const generateRecurring = async () => {
+      loading.value = true
+      try {
+        const response = await fetch('/api/invoices/generate-recurring', {
+          method: 'POST',
+          headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+          }
+        })
+        
+        const data = await response.json()
+        
+        if (data.success) {
+          showToast(data.message, 'success')
+          fetchInvoices()
+          fetchStats()
+        } else {
+          showToast(data.message || 'Failed to generate recurring invoices', 'error')
+        }
+      } catch (error) {
+        showToast('Error generating recurring invoices', 'error')
+        console.error('Error:', error)
+      } finally {
+        loading.value = false
+      }
+    }
+    
+    const sendAutomatic = async () => {
+      loading.value = true
+      try {
+        const response = await fetch('/api/invoices/send-automatic', {
+          method: 'POST',
+          headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+          }
+        })
+        
+        const data = await response.json()
+        
+        if (data.success) {
+          showToast(data.message, 'success')
+          fetchInvoices()
+          fetchStats()
+        } else {
+          showToast(data.message || 'Failed to send automatic invoices', 'error')
+        }
+      } catch (error) {
+        showToast('Error sending automatic invoices', 'error')
+        console.error('Error:', error)
+      } finally {
+        loading.value = false
+      }
+    }
+    
+    const markOverdue = async () => {
+      loading.value = true
+      try {
+        const response = await fetch('/api/invoices/mark-overdue', {
+          method: 'POST',
+          headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+          }
+        })
+        
+        const data = await response.json()
+        
+        if (data.success) {
+          showToast(data.message, 'success')
+          fetchInvoices()
+          fetchStats()
+        } else {
+          showToast(data.message || 'Failed to mark overdue invoices', 'error')
+        }
+      } catch (error) {
+        showToast('Error marking overdue invoices', 'error')
+        console.error('Error:', error)
+      } finally {
+        loading.value = false
+      }
+    }
+    
+    const markAsPaid = async (invoice) => {
+      loading.value = true
+      try {
+        const response = await fetch(`/api/invoices/${invoice.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+          },
+          body: JSON.stringify({ status: 'paid' })
+        })
+        
+        const data = await response.json()
+        
+        if (data.success) {
+          showToast('Invoice marked as paid', 'success')
+          fetchInvoices()
+          fetchStats()
+        } else {
+          showToast(data.message || 'Failed to update invoice', 'error')
+        }
+      } catch (error) {
+        showToast('Error updating invoice', 'error')
+        console.error('Error:', error)
+      } finally {
+        loading.value = false
+      }
+    }
+    
+    // UI helper methods
+    const viewInvoice = async (invoice) => {
+      loading.value = true
+      try {
+        const response = await fetch(`/api/invoices/${invoice.id}`)
+        const data = await response.json()
+        
+        if (data.success) {
+          selectedInvoice.value = data.data
+          showViewModal.value = true
+        } else {
+          showToast('Failed to load invoice details', 'error')
+        }
+      } catch (error) {
+        showToast('Error loading invoice details', 'error')
+        console.error('Error:', error)
+      } finally {
+        loading.value = false
+      }
+    }
+    
     const editInvoice = (invoice) => {
       selectedInvoice.value = invoice
-      Object.assign(invoiceForm, {
-        client_id: invoice.client_id,
-        invoice_date: invoice.invoice_date,
-        due_date: invoice.due_date,
-        notes: invoice.notes || '',
-        items: invoice.items?.length ? invoice.items.map(item => ({
-          description: item.description,
-          quantity: item.quantity,
-          unit_price: item.unit_price
-        })) : [{ description: '', quantity: 1, unit_price: 0 }]
-      })
+      form.registration_id = invoice.registration_id
+      form.amount = invoice.amount
+      form.billing_date = invoice.billing_date
+      form.due_date = invoice.due_date
+      form.status = invoice.status
+      form.notes = invoice.notes || ''
+      form.is_recurring = invoice.is_recurring
       showEditModal.value = true
     }
-
-    const duplicateInvoice = async (invoice) => {
-      try {
-        await api.post(`/${invoice.id}/duplicate`)
-        loadInvoices()
-        loadStatistics()
-      } catch (error) {
-        console.error('Error duplicating invoice:', error)
+    
+    const submitForm = () => {
+      if (showCreateModal.value) {
+        createInvoice()
+      } else if (showEditModal.value) {
+        updateInvoice()
       }
     }
-
-    const markAsSent = async (invoice) => {
-      try {
-        await api.post(`/${invoice.id}/mark-as-sent`)
-        loadInvoices()
-        loadStatistics()
-        activeDropdown.value = null
-      } catch (error) {
-        console.error('Error marking invoice as sent:', error)
-      }
-    }
-
-    const showPaymentModal = (invoice) => {
-      selectedInvoice.value = invoice
-      paymentForm.amount = invoice.balance
-      showPaymentModalFlag.value = true
-      activeDropdown.value = null
-    }
-
-    const recordPayment = async () => {
-      saving.value = true
-      try {
-        await api.post(`/${selectedInvoice.value.id}/record-payment`, paymentForm)
-        closePaymentModal()
-        loadInvoices()
-        loadStatistics()
-      } catch (error) {
-        console.error('Error recording payment:', error)
-      } finally {
-        saving.value = false
-      }
-    }
-
-    const deleteInvoice = async (invoice) => {
-      if (confirm('Are you sure you want to delete this invoice?')) {
-        try {
-          await api.delete(`/${invoice.id}`)
-          loadInvoices()
-          loadStatistics()
-          activeDropdown.value = null
-        } catch (error) {
-          console.error('Error deleting invoice:', error)
-        }
-      }
-    }
-
-    const sort = (field) => {
-      if (sorting.sort_by === field) {
-        sorting.sort_order = sorting.sort_order === 'asc' ? 'desc' : 'asc'
-      } else {
-        sorting.sort_by = field
-        sorting.sort_order = 'asc'
-      }
-      loadInvoices()
-    }
-
-    const changePage = (page) => {
-      pagination.current_page = page
-      loadInvoices()
-    }
-
-
+    
     const closeModals = () => {
       showCreateModal.value = false
       showEditModal.value = false
       showViewModal.value = false
       selectedInvoice.value = null
+      resetForm()
     }
-
-    const closePaymentModal = () => {
-      showPaymentModalFlag.value = false
-      selectedInvoice.value = null
-      Object.assign(paymentForm, { amount: 0, payment_method: '', payment_notes: '' })
+    
+    const resetForm = () => {
+      form.registration_id = ''
+      form.amount = ''
+      form.billing_date = ''
+      form.due_date = ''
+      form.status = 'pending'
+      form.notes = ''
+      form.is_recurring = true
     }
-
-    const toggleDropdown = (invoiceId, event) => {
-      event.preventDefault()
-      event.stopPropagation()
-      console.log('Toggle called for invoice:', invoiceId)
-      
-      if (showDropdown.value && dropdownInvoiceId.value === invoiceId) {
-        showDropdown.value = false
-        dropdownInvoiceId.value = null
+    
+    // Filter and search methods
+    const applyFilters = () => {
+      pagination.current_page = 1
+      fetchInvoices(1)
+    }
+    
+    const debouncedSearch = () => {
+      clearTimeout(searchTimeout)
+      searchTimeout = setTimeout(() => {
+        applyFilters()
+      }, 500)
+    }
+    
+    // Sorting methods
+    const sort = (field) => {
+      if (sortField.value === field) {
+        sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
       } else {
-        showDropdown.value = true
-        dropdownInvoiceId.value = invoiceId
+        sortField.value = field
+        sortDirection.value = 'asc'
       }
-      
-      console.log('showDropdown:', showDropdown.value)
-      console.log('dropdownInvoiceId:', dropdownInvoiceId.value)
+      fetchInvoices(1)
     }
-
-    // Utility functions
-    const formatCurrency = (amount) => {
+    
+    // Pagination methods
+    const changePage = (page) => {
+      if (page >= 1 && page <= pagination.last_page) {
+        fetchInvoices(page)
+      }
+    }
+    
+    // Selection methods
+    const toggleSelection = (invoiceId) => {
+      const index = selectedInvoices.value.indexOf(invoiceId)
+      if (index > -1) {
+        selectedInvoices.value.splice(index, 1)
+      } else {
+        selectedInvoices.value.push(invoiceId)
+      }
+    }
+    
+    const toggleAllSelection = () => {
+      if (isAllSelected.value) {
+        selectedInvoices.value = []
+      } else {
+        selectedInvoices.value = invoices.value.map(invoice => invoice.id)
+      }
+    }
+    
+    // Formatting methods
+    const formatAmount = (amount) => {
       return parseFloat(amount || 0).toFixed(2)
     }
-
+    
     const formatDate = (date) => {
-      return new Date(date).toLocaleDateString()
+      if (!date) return ''
+      return new Date(date).toLocaleDateString('en-ZA')
     }
-
+    
+    const formatDateTime = (datetime) => {
+      if (!datetime) return ''
+      return new Date(datetime).toLocaleString('en-ZA')
+    }
+    
     const formatStatus = (status) => {
-      return status.charAt(0).toUpperCase() + status.slice(1)
-    }
-
-    const getSortClass = (field) => {
-      if (sorting.sort_by !== field) return ''
-      return sorting.sort_order === 'asc' ? 'asc' : 'desc'
-    }
-
-    const debouncedSearch = (() => {
-      let timeout
-      return () => {
-        clearTimeout(timeout)
-        timeout = setTimeout(() => {
-          loadInvoices()
-        }, 300)
+      const statusMap = {
+        pending: 'Pending',
+        sent: 'Sent',
+        paid: 'Paid',
+        overdue: 'Overdue',
+        cancelled: 'Cancelled'
       }
-    })()
-
-    // Close dropdown when clicking outside
-    const handleClickOutside = (event) => {
-      if (!event.target.closest('.dropdown')) {
-        showDropdown.value = false
-        dropdownInvoiceId.value = null
-      }
+      return statusMap[status] || status
     }
-
-    // Lifecycle
+    
+    const formatServiceType = (serviceType) => {
+      const typeMap = {
+        fiber: 'Fiber',
+        adsl: 'ADSL',
+        wireless: 'Wireless'
+      }
+      return typeMap[serviceType] || serviceType
+    }
+    
+    // Toast notification methods
+    const showToast = (message, type = 'info') => {
+      const toast = {
+        id: Date.now(),
+        message,
+        type
+      }
+      toasts.value.push(toast)
+      
+      setTimeout(() => {
+        const index = toasts.value.findIndex(t => t.id === toast.id)
+        if (index > -1) {
+          toasts.value.splice(index, 1)
+        }
+      }, 5000)
+    }
+    
+    // Watchers
+    watch(() => showCreateModal.value, (newVal) => {
+      if (newVal && registrations.value.length === 0) {
+        fetchRegistrations()
+      }
+    })
+    
+    // Lifecycle hooks
     onMounted(() => {
-      loadInvoices()
-      loadClients()
-      loadStatistics()
-      loadServices()
-      document.addEventListener('click', handleClickOutside)
+      fetchInvoices()
+      fetchStats()
     })
-
+    
     onUnmounted(() => {
-      document.removeEventListener('click', handleClickOutside)
+      if (searchTimeout) {
+        clearTimeout(searchTimeout)
+      }
     })
-
+    
     return {
-      // Data
-      invoices,
-      clients,
-      statistics,
+      // Reactive data
       loading,
-      saving,
-      services,
-      filters,
-      sorting,
-      pagination,
-      paymentForm,
+      invoices,
+      registrations,
+      selectedInvoices,
+      selectedInvoice,
+      toasts,
       
       // Modal states
       showCreateModal,
       showEditModal,
-      showPaymentModalFlag,
-      selectedInvoice,
-      activeDropdown,
       showViewModal,
-      showDropdown,
-  dropdownInvoiceId,
+      
+      // Statistics and pagination
+      stats,
+      pagination,
+      
+      // Filters and sorting
+      filters,
+      sortField,
+      sortDirection,
+      
+      // Form
+      form,
+      
+      // Computed
+      isAllSelected,
       
       // Methods
-      loadInvoices,
+      fetchInvoices,
+      fetchStats,
+      fetchRegistrations,
+      createInvoice,
+      updateInvoice,
+      deleteInvoice,
+      sendSingleInvoice,
+      sendBulkInvoices,
+      generateRecurring,
+      sendAutomatic,
+      markOverdue,
+      markAsPaid,
       viewInvoice,
       editInvoice,
-      duplicateInvoice,
-      markAsSent,
-      showPaymentModal,
-      recordPayment,
-      deleteInvoice,
+      submitForm,
+      closeModals,
+      resetForm,
+      applyFilters,
+      debouncedSearch,
       sort,
       changePage,
-      handleSaveInvoice,
-      closeModals,
-      closePaymentModal,
-      toggleDropdown,
-      debouncedSearch,
-      handleClickOutside,
-      
-      // Utilities
-      formatCurrency,
+      toggleSelection,
+      toggleAllSelection,
+      formatAmount,
       formatDate,
+      formatDateTime,
       formatStatus,
-      getSortClass
+      formatServiceType,
+      showToast
     }
   }
 }
 </script>
 
 <style scoped>
-.invoice-manager {
-  padding: 24px;
+.invoice-management {
+  padding: 20px;
   max-width: 1400px;
   margin: 0 auto;
 }
 
-/* Header Section */
-.header-section {
-  margin-bottom: 32px;
-}
-
-.header-content {
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .page-title {
-  font-size: 32px;
-  font-weight: 700;
-  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
   color: #1f2937;
+  margin: 0;
 }
 
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* Statistics Cards */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 20px;
+  margin-bottom: 20px;
 }
 
-.stat-card {
+.revenue-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.stat-card, .revenue-card {
   background: white;
-  padding: 24px;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  border-left: 4px solid #3b82f6;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid #6b7280;
 }
 
-.stat-value {
-  font-size: 28px;
+.stat-card.pending {
+  border-left-color: #f59e0b;
+}
+
+.stat-card.sent {
+  border-left-color: #3b82f6;
+}
+
+.stat-card.paid {
+  border-left-color: #10b981;
+}
+
+.stat-card.overdue {
+  border-left-color: #ef4444;
+}
+
+.revenue-card {
+  border-left-color: #8b5cf6;
+}
+
+.stat-value, .revenue-value {
+  font-size: 24px;
   font-weight: 700;
   color: #1f2937;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
-.stat-label {
+.stat-label, .revenue-label {
   font-size: 14px;
   color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-/* Filters Section */
+/* Filters */
 .filters-section {
   background: white;
-  padding: 24px;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
-  margin-bottom: 24px;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
 }
 
-.filters-grid {
+.filters-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
+  gap: 15px;
   align-items: end;
 }
 
-.filter-group {
-  display: flex;
-  flex-direction: column;
-}
-
 .filter-group label {
-  margin-bottom: 8px;
+  display: block;
+  font-size: 14px;
   font-weight: 500;
   color: #374151;
-  font-size: 14px;
+  margin-bottom: 5px;
 }
 
-.checkbox-label {
-  flex-direction: row !important;
-  align-items: center;
-  gap: 8px;
-}
-
-.checkbox-label input[type="checkbox"] {
-  margin: 0;
-}
-
-/* Table Section */
-.table-section {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-}
-
-.table-header {
+/* Bulk Actions */
+.bulk-actions {
+  background: #f3f4f6;
+  padding: 12px 20px;
+  border-radius: 8px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 24px;
-  border-bottom: 1px solid #e5e7eb;
+  gap: 15px;
+  margin-bottom: 20px;
 }
 
-.table-header h3 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-.table-controls {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
+/* Table */
 .table-container {
-  overflow-x: auto;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  margin-bottom: 20px;
 }
 
 .invoice-table {
@@ -804,85 +1240,72 @@ export default {
 
 .invoice-table th {
   background: #f9fafb;
-  padding: 16px;
+  padding: 12px 15px;
   text-align: left;
   font-weight: 600;
   color: #374151;
   border-bottom: 1px solid #e5e7eb;
-  position: relative;
+  user-select: none;
 }
 
 .invoice-table th.sortable {
   cursor: pointer;
-  user-select: none;
+  position: relative;
 }
 
 .invoice-table th.sortable:hover {
   background: #f3f4f6;
 }
 
-.sort-indicator {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 0;
-  height: 0;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-}
-
-.sort-indicator.asc {
-  border-bottom: 6px solid #6b7280;
-}
-
-.sort-indicator.desc {
-  border-top: 6px solid #6b7280;
+.sort-arrow {
+  margin-left: 5px;
+  font-size: 12px;
 }
 
 .invoice-table td {
-  padding: 16px;
-  border-bottom: 1px solid #e5e7eb;
-  color: #374151;
+  padding: 12px 15px;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
 }
 
-.invoice-row:hover {
+.invoice-table tbody tr:hover {
   background: #f9fafb;
 }
 
-.invoice-number {
-  font-weight: 600;
-  color: #1f2937;
+.invoice-table tbody tr.selected {
+  background: #eff6ff;
 }
 
-.amount {
-  font-weight: 600;
-  text-align: right;
+.text-center {
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
 }
 
+/* Status badges */
 .status-badge {
   display: inline-block;
-  padding: 4px 12px;
-  border-radius: 20px;
+  padding: 4px 8px;
+  border-radius: 4px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-.status-draft {
+.status-pending {
   background: #fef3c7;
-  color: #92400e;
+  color: #d97706;
 }
 
 .status-sent {
   background: #dbeafe;
-  color: #1e40af;
+  color: #2563eb;
 }
 
 .status-paid {
   background: #d1fae5;
-  color: #047857;
+  color: #065f46;
 }
 
 .status-overdue {
@@ -890,99 +1313,43 @@ export default {
   color: #dc2626;
 }
 
+.status-cancelled {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* Actions */
 .actions {
   display: flex;
   gap: 8px;
-  align-items: center;
-}
-
-.invoice-dropdown {
-  position: relative !important;
-}
-
-.invoice-dropdown-menu {
-  position: relative !important;
-  top: 100% !important;
-  right: 0 !important;
-  background: white !important;
-  border: 1px solid #e5e7eb !important;
-  border-radius: 8px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
-  z-index: 9999 !important;
-  min-width: 150px !important;
-}
-
-.invoice-dropdown-item {
-  display: block !important;
-  width: 100% !important;
-  padding: 12px 16px !important;
-  text-align: left !important;
-  border: none !important;
-  background: none !important;
-  cursor: pointer !important;
-  color: #374151 !important;
-  font-size: 14px !important;
-}
-
-.invoice-dropdown-item:hover {
-  background: #f9fafb !important;
-}
-
-.invoice-dropdown-item.danger {
-  color: #dc2626 !important;
-}
-
-.invoice-dropdown-item.danger:hover {
-  background: #fef2f2 !important;
-}
-
-.loading-row,
-.empty-row {
-  text-align: center;
-  padding: 48px 16px;
-  color: #6b7280;
-  font-style: italic;
 }
 
 /* Pagination */
 .pagination {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  padding: 24px;
-  border-top: 1px solid #e5e7eb;
-}
-
-.pagination-info {
-  color: #6b7280;
-  font-size: 14px;
-}
-
-.pagination-controls {
-  display: flex;
-  gap: 12px;
-  align-items: center;
+  gap: 15px;
+  padding: 20px;
 }
 
 .page-info {
-  color: #374151;
-  font-weight: 500;
+  color: #6b7280;
+  font-size: 14px;
 }
-
 
 /* Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
-  border: none;
-  border-radius: 8px;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: 6px;
   font-size: 14px;
   font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
   text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .btn:disabled {
@@ -993,172 +1360,399 @@ export default {
 .btn-primary {
   background: #3b82f6;
   color: white;
+  border-color: #3b82f6;
 }
 
 .btn-primary:hover:not(:disabled) {
   background: #2563eb;
+  border-color: #2563eb;
 }
 
-.btn-secondary {
-  background: #6b7280;
+.btn-outline {
+  background: white;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.btn-success {
+  background: #10b981;
   color: white;
+  border-color: #10b981;
 }
 
-.btn-secondary:hover:not(:disabled) {
-  background: #4b5563;
+.btn-success:hover:not(:disabled) {
+  background: #059669;
+  border-color: #059669;
 }
 
 .btn-danger {
-  background: #dc2626;
+  background: #ef4444;
   color: white;
+  border-color: #ef4444;
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #b91c1c;
+  background: #dc2626;
+  border-color: #dc2626;
 }
 
 .btn-sm {
-  padding: 6px 12px;
+  padding: 4px 8px;
   font-size: 12px;
 }
 
-.btn-icon {
-  display: inline-flex;
+/* Form Elements */
+.input-field,
+.select-field,
+.textarea-field {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+}
+
+.input-field:focus,
+.select-field:focus,
+.textarea-field:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  margin: 0;
+}
+
+/* Modals */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: none;
-  border-radius: 6px;
-  background: #f3f4f6;
-  color: #6b7280;
-  cursor: pointer;
-  transition: all 0.2s;
+  z-index: 1000;
 }
 
-.btn-icon:hover {
-  background: #e5e7eb;
-  color: #374151;
+.modal {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
-
-.btn-close:hover {
-  color: #374151;
+.modal-lg {
+  max-width: 800px;
 }
 
-.icon {
-  width: 18px;
-  height: 18px;
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-
-.form-group label {
-  margin-bottom: 8px;
-  font-weight: 500;
-  color: #374151;
-  font-size: 14px;
-}
-
-.form-group small {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #6b7280;
-}
-
-/* Invoice Items */
-
-
-.items-section h4 {
-  margin: 0 0 16px 0;
+.modal-header h3 {
+  margin: 0;
   font-size: 18px;
   font-weight: 600;
   color: #1f2937;
 }
 
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
+.modal-close:hover {
+  color: #374151;
+}
 
-.items-table th,
-.items-table td {
-  padding: 12px;
-  text-align: left;
+.modal-body {
+  padding: 24px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* Form Layout */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 5px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+/* Invoice Details */
+.invoice-details {
+  space-y: 20px;
+}
+
+.detail-section {
+  margin-bottom: 24px;
+}
+
+.detail-section h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 12px 0;
+  padding-bottom: 8px;
   border-bottom: 1px solid #e5e7eb;
 }
 
-.items-table th {
-  background: #f9fafb;
-  font-weight: 600;
-  color: #374151;
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 12px;
 }
 
-.items-table td:last-child,
-.items-table th:last-child {
-  text-align: right;
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
 }
 
-
-.invoice-notes h5 {
-  margin: 0 0 8px 0;
-  font-weight: 600;
-  color: #374151;
-}
-
-.invoice-notes p {
-  margin: 0;
+.detail-item label {
+  font-weight: 500;
   color: #6b7280;
-  line-height: 1.6;
+  margin: 0;
+}
+
+.detail-item span {
+  color: #1f2937;
+}
+
+/* Email Logs */
+.email-logs {
+  space-y: 8px;
+}
+
+.email-log-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f9fafb;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.log-status {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.log-status.sent {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.log-status.failed {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.log-date {
+  color: #6b7280;
+}
+
+.log-email {
+  color: #374151;
+}
+
+.log-error {
+  grid-column: 1 / -1;
+  color: #dc2626;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* Toast Notifications */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toast {
+  padding: 12px 16px;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  font-size: 14px;
+  font-weight: 500;
+  max-width: 300px;
+  animation: slideIn 0.3s ease;
+}
+
+.toast-success {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.toast-error {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+}
+
+.toast-info {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .invoice-manager {
-    padding: 16px;
+  .invoice-management {
+    padding: 10px;
   }
   
-  .header-content {
+  .page-header {
     flex-direction: column;
-    gap: 16px;
+    gap: 15px;
     align-items: stretch;
   }
   
-  .filters-grid {
+  .header-actions {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  .stats-grid,
+  .revenue-stats {
     grid-template-columns: 1fr;
   }
   
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .item-grid {
+  .filters-row {
     grid-template-columns: 1fr;
   }
   
-  .invoice-header {
-    flex-direction: column;
-    gap: 16px;
+  .form-row {
+    grid-template-columns: 1fr;
   }
   
-  .pagination {
-    flex-direction: column;
-    gap: 16px;
+  .detail-grid {
+    grid-template-columns: 1fr;
   }
   
+  .detail-item {
+    flex-direction: column;
+    align-items: start;
+    gap: 4px;
+  }
   
-  .table-container {
-    overflow-x: scroll;
+  .bulk-actions {
+    flex-direction: column;
+    gap: 10px;
+    align-items: start;
+  }
+  
+  .actions {
+    flex-wrap: wrap;
+  }
+  
+  .modal {
+    width: 95%;
+    margin: 10px;
+  }
+  
+  .toast-container {
+    left: 10px;
+    right: 10px;
+  }
+  
+  .toast {
+    max-width: none;
   }
   
   .invoice-table {
-    min-width: 800px;
+    font-size: 12px;
+  }
+  
+  .invoice-table th,
+  .invoice-table td {
+    padding: 8px 6px;
   }
 }
 
 @media (max-width: 480px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
+  .btn {
+    font-size: 12px;
+    padding: 6px 12px;
   }
   
-  .actions {
-    flex-direction: column;
+  .btn-sm {
+    padding: 4px 6px;
+    font-size: 10px;
   }
 }
 </style>

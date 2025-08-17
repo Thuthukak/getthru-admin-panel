@@ -148,17 +148,17 @@
                   <span class="custom-radio-text">100GB - R300</span>
                 </label>
                 <label class="custom-radio-container">
-                  <input v-model="formData.package" type="radio" value="basic" class="custom-radio-input" />
+                  <input v-model="formData.package" type="radio" value="Basic" class="custom-radio-input" />
                   <span class="custom-radio-checkmark"></span>
                   <span class="custom-radio-text">Basic - R 430.00 (Unlimited 10/10Mbps)</span>
                 </label>
                 <label class="custom-radio-container">
-                  <input v-model="formData.package" type="radio" value="standard" class="custom-radio-input" />
+                  <input v-model="formData.package" type="radio" value="Standard" class="custom-radio-input" />
                   <span class="custom-radio-checkmark"></span>
                   <span class="custom-radio-text">Standard - R 550.00 (Unlimited 20/20Mbps)</span>
                 </label>
                 <label class="custom-radio-container">
-                  <input v-model="formData.package" type="radio" value="premium" class="custom-radio-input" />
+                  <input v-model="formData.package" type="radio" value="Premium" class="custom-radio-input" />
                   <span class="custom-radio-checkmark"></span>
                   <span class="custom-radio-text">Premium - R 650.00 (Unlimited 30/30Mbps)</span>
                 </label>

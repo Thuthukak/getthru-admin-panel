@@ -1,6 +1,11 @@
 <template>
   <div class="container mt-4">
-    <h1 class="mb-4 fw-bold">Installations</h1>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="fw-bold mb-0">Installations</h1>
+    <button @click="goToAddInstallation" class="btn btn-primary">
+      <i class="bi bi-plus-circle me-1"></i> Add Installation
+    </button>
+  </div>
     
     <!-- Filters Section -->
     <div class="card mb-4">
@@ -14,7 +19,7 @@
               <option value="pending">Pending</option>
               <option value="confirmed">Confirmed</option>
               <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
+              <option value="processed">Processed</option>
               <option value="cancelled">Cancelled</option>
             </select>
           </div>
@@ -119,7 +124,7 @@
                     <option value="pending">Pending</option>
                     <option value="confirmed">Confirmed</option>
                     <option value="in_progress">In Progress</option>
-                    <option value="completed">Completed</option>
+                    <option value="processed">Processed</option>
                     <option value="cancelled">Cancelled</option>
                   </select>
                 </td>
@@ -219,6 +224,12 @@ export default {
     this.fetchServiceTypes()
   },
   methods: {
+
+    //go to add installation page
+    goToAddInstallation() {
+      window.location.href = '/reg-form';
+    },
+    // Fetch installations
     async fetchInstallations(page = 1) {
       this.loading = true
       try {

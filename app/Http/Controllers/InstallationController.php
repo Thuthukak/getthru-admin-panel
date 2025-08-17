@@ -57,7 +57,7 @@ class InstallationController extends Controller
     public function updateStatus(Request $request, $id): JsonResponse
     {
         $request->validate([
-            'status' => 'required|string|in:pending,confirmed,in_progress,completed,cancelled'
+            'status' => 'required|string|in:pending,confirmed,in_progress,processed,cancelled'
         ]);
         
         $installation = Registration::findOrFail($id);
@@ -65,8 +65,8 @@ class InstallationController extends Controller
         $oldStatus = $installation->status;
         $installation->status = $request->status;
         
-        // Update processed_at timestamp when status changes to completed
-        if ($request->status === 'completed' && $oldStatus !== 'completed') {
+        // Update processed_at timestamp when status changes to processed
+        if ($request->status === 'processed' && $oldStatus !== 'processed') {
             $installation->processed_at = Carbon::now();
         }
         
@@ -100,7 +100,7 @@ class InstallationController extends Controller
             'deposit_payment' => 'sometimes|numeric',
             'how_did_you_know' => 'sometimes|string|max:255',
             'comments' => 'sometimes|nullable|string|max:1000',
-            'status' => 'sometimes|string|in:pending,confirmed,in_progress,completed,cancelled'
+            'status' => 'sometimes|string|in:pending,confirmed,in_progress,processed,cancelled'
         ]);
         
         $installation->update($validated);
@@ -148,7 +148,7 @@ class InstallationController extends Controller
             'pending' => Registration::where('status', 'pending')->count(),
             'confirmed' => Registration::where('status', 'confirmed')->count(),
             'in_progress' => Registration::where('status', 'in_progress')->count(),
-            'completed' => Registration::where('status', 'completed')->count(),
+            'processed' => Registration::where('status', 'processed')->count(),
             'cancelled' => Registration::where('status', 'cancelled')->count(),
             'this_month' => Registration::whereMonth('created_at', Carbon::now()->month)
                 ->whereYear('created_at', Carbon::now()->year)

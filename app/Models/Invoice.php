@@ -1,167 +1,110 @@
 <?php
-// app/Models/Invoice.php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Invoice extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'registration_id',
+        'customer_name',
+        'customer_email',
+        'customer_phone',
+        'customer_address',
         'invoice_number',
-        'client_id',
-        'invoice_date',
+        'service_type',
+        'package',
+        'amount',
+        'payment_period',
+        'billing_date',
         'due_date',
         'status',
-        'notes',
-        'terms',
-        'subtotal',
-        'tax_rate',
-        'tax_amount',
-        'discount_rate',
-        'discount_amount',
-        'total',
-        'paid_amount',
-        'balance',
-        'paid_date',
-        'payment_method',
-        'payment_notes',
         'sent_at',
+        'paid_at',
+        'notes',
+        'is_recurring',
+        'next_billing_date'
     ];
 
     protected $casts = [
-        'invoice_date' => 'date',
+        'billing_date' => 'date',
         'due_date' => 'date',
-        'paid_date' => 'date',
+        'next_billing_date' => 'date',
         'sent_at' => 'datetime',
-        'subtotal' => 'decimal:2',
-        'tax_rate' => 'decimal:2',
-        'tax_amount' => 'decimal:2',
-        'discount_rate' => 'decimal:2',
-        'discount_amount' => 'decimal:2',
-        'total' => 'decimal:2',
-        'paid_amount' => 'decimal:2',
-        'balance' => 'decimal:2',
+        'paid_at' => 'datetime',
+        'amount' => 'decimal:2',
+        'is_recurring' => 'boolean'
     ];
 
-    // Relationships
-    public function client(): BelongsTo
+    public function registration()
     {
-        return $this->belongsTo(Client::class);
+        return $this->belongsTo(Registration::class);
     }
 
-    public function items(): HasMany
+    public function emailLogs()
     {
-        return $this->hasMany(InvoiceItem::class)->orderBy('sort_order');
+        return $this->hasMany(InvoiceEmailLog::class);
     }
 
-    // Scopes
-    public function scopeByStatus($query, $status)
+    public function generateInvoiceNumber()
     {
-        return $query->where('status', $status);
+        $year = date('Y');
+        $month = date('m');
+        $lastInvoice = self::whereYear('created_at', $year)
+            ->whereMonth('created_at', $month)
+            ->orderBy('id', 'desc')
+            ->first();
+
+        $sequence = $lastInvoice ? (int)substr($lastInvoice->invoice_number, -4) + 1 : 1;
+        
+        return 'INV-' . $year . $month . str_pad($sequence, 4, '0', STR_PAD_LEFT);
+    }
+
+    public function calculateNextBillingDate()
+    {
+        if (!$this->is_recurring) {
+            return null;
+        }
+
+        $currentDate = $this->billing_date;
+        
+        if ($this->payment_period === '1st of every month') {
+            return $currentDate->addMonth()->startOfMonth();
+        } elseif ($this->payment_period === '15th of every month') {
+            return $currentDate->addMonth()->day(15);
+        }
+
+        return null;
+    }
+
+    public function markAsSent()
+    {
+        $this->update([
+            'status' => 'sent',
+            'sent_at' => now()
+        ]);
+    }
+
+    public function markAsPaid()
+    {
+        $this->update([
+            'status' => 'paid',
+            'paid_at' => now()
+        ]);
     }
 
     public function scopeOverdue($query)
     {
-        return $query->where('status', '!=', 'paid')
-                    ->where('due_date', '<', now());
+        return $query->where('due_date', '<', now())
+            ->whereIn('status', ['sent', 'pending']);
     }
 
-    public function scopeByClient($query, $clientId)
+    public function scopeDueToday($query)
     {
-        return $query->where('client_id', $clientId);
-    }
-
-    public function scopeByDateRange($query, $startDate, $endDate)
-    {
-        return $query->whereBetween('invoice_date', [$startDate, $endDate]);
-    }
-
-    // Accessors & Mutators
-    public function getIsOverdueAttribute(): bool
-    {
-        return $this->status !== 'paid' && $this->due_date < now();
-    }
-
-    public function getFormattedTotalAttribute(): string
-    {
-        return '$' . number_format($this->total, 2);
-    }
-
-    public function getFormattedBalanceAttribute(): string
-    {
-        return '$' . number_format($this->balance, 2);
-    }
-
-    // Methods
-    public function calculateTotals(): void
-    {
-        $this->subtotal = $this->items->sum('total');
-        
-        // Calculate discount
-        if ($this->discount_rate > 0) {
-            $this->discount_amount = ($this->subtotal * $this->discount_rate) / 100;
-        }
-        
-        $subtotalAfterDiscount = $this->subtotal - $this->discount_amount;
-        
-        // Calculate tax
-        if ($this->tax_rate > 0) {
-            $this->tax_amount = ($subtotalAfterDiscount * $this->tax_rate) / 100;
-        }
-        
-        $this->total = $subtotalAfterDiscount + $this->tax_amount;
-        $this->balance = $this->total - $this->paid_amount;
-    }
-
-    public function generateInvoiceNumber(): string
-    {
-        $year = now()->year;
-        $lastInvoice = static::whereYear('created_at', $year)
-                           ->orderBy('id', 'desc')
-                           ->first();
-        
-        $number = $lastInvoice ? 
-            intval(substr($lastInvoice->invoice_number, -4)) + 1 : 1;
-        
-        return 'INV-' . $year . '-' . str_pad($number, 4, '0', STR_PAD_LEFT);
-    }
-
-    public function markAsSent(): void
-    {
-        $this->update([
-            'status' => 'sent',
-            'sent_at' => now(),
-        ]);
-    }
-
-    public function markAsPaid(float $amount = null, string $method = null, string $notes = null): void
-    {
-        $paymentAmount = $amount ?? $this->balance;
-        
-        $this->update([
-            'paid_amount' => $this->paid_amount + $paymentAmount,
-            'balance' => $this->total - ($this->paid_amount + $paymentAmount),
-            'status' => ($this->paid_amount + $paymentAmount) >= $this->total ? 'paid' : 'sent',
-            'paid_date' => ($this->paid_amount + $paymentAmount) >= $this->total ? now() : $this->paid_date,
-            'payment_method' => $method ?? $this->payment_method,
-            'payment_notes' => $notes ?? $this->payment_notes,
-        ]);
-    }
-
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::creating(function ($invoice) {
-            if (empty($invoice->invoice_number)) {
-                $invoice->invoice_number = $invoice->generateInvoiceNumber();
-            }
-        });
+        return $query->whereDate('billing_date', today());
     }
 }

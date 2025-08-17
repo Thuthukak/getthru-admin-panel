@@ -87,6 +87,9 @@ Route::prefix('api')->group(function () {
     Route::get('estimates/{id}/pdf', [EstimateController::class, 'downloadPDF']);
     Route::delete('estimates/{id}', [EstimateController::class, 'destroy']);
 
+    //registration form
+    Route::post('/reg-form-submit', [RegistrationController::class, 'store'])->name('reg-form.submit');
+
     //installations
     Route::get('/installations', [InstallationController::class, 'index'])->name('installations.show');
     Route::get('/installations/service-types', [InstallationController::class, 'getServiceTypes']);
@@ -99,21 +102,22 @@ Route::prefix('api')->group(function () {
     //invoices
     Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.show');
     Route::post('/invoices', [InvoiceController::class, 'store']); 
-    Route::get('/invoices/clients', [ClientController::class, 'index']);
     Route::get('/invoices/{invoice}', [InvoiceController::class, 'show']); 
     Route::put('/invoices/{invoice}', [InvoiceController::class, 'update']); 
-    Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy']); 
-    // Special actions
-    Route::post('/invoices/{invoice}/send', [InvoiceController::class, 'markAsSent']); 
-    Route::post('/invoices/{invoice}/payment', [InvoiceController::class, 'recordPayment']); 
-    Route::post('/invoices/{invoice}/duplicate', [InvoiceController::class, 'duplicate']); 
-    
-    // Statistics and reporting
-    Route::get('/invoices/statistics', [InvoiceController::class, 'statistics']); 
+    Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy']);
+    // Invoice actions
+    Route::post('/invoices/{invoice}/send', [InvoiceController::class, 'sendInvoice']);
+    Route::post('/invoices/send-bulk', [InvoiceController::class, 'sendBulkInvoices']);
+    // Invoice Automated processes
+    Route::post('/invoices/generate-recurring', [InvoiceController::class, 'generateRecurring']);
+    Route::post('/invoices/send-automatic', [InvoiceController::class, 'sendAutomatic']);
+    Route::post('/invoices/mark-overdue', [InvoiceController::class, 'markOverdue']);
+    // Invoice Data endpoints
+    Route::get('/invoices/stats', [InvoiceController::class, 'stats']);
+    Route::get('/invoices/registrations', [InvoiceController::class, 'getRegistrations']); 
+   
     
     // Helper endpoints
-    Route::get('/invoices/clients/list', [InvoiceController::class, 'getClients']); 
-
     Route::get('/invoices/profile/data', [ProfileController::class, 'show'])->name('profile.data');
 
     // registration form

@@ -100,11 +100,11 @@ export default {
           label: 'Installations',
           icon: ['fas', 'clipboard-list'],
         },
-        {
-          path: '/admin/quotations',
-          label: 'Quotations',
-          icon: ['fas', 'clipboard-list'],
-        },
+        // {
+        //   path: '/admin/quotations',
+        //   label: 'Quotations',
+        //   icon: ['fas', 'clipboard-list'],
+        // },
         {
           path: '/admin/invoices',
           label: 'Invoices',

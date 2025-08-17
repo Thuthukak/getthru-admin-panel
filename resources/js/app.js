@@ -2,28 +2,29 @@ import './bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../css/app.css';
 import '../css/custom.css';
-
 import { createApp, h } from 'vue';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { Head } from '@inertiajs/vue3'
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from 'ziggy-js';
 
+// Bootstrap import
+import * as bootstrap from 'bootstrap';
+
 // FontAwesome setup
 import { library } from "@fortawesome/fontawesome-svg-core";
-import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome"; 
-
-import { 
-    faBars, 
-    faMoon, 
-    faSun, 
-    faGlobe, 
-    faUser, 
-    faBell, 
-    faCog, 
+import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
+import {
+    faBars,
+    faMoon,
+    faSun,
+    faGlobe,
+    faUser,
+    faBell,
+    faCog,
     faHome,
     faTrash,
-    faFilePdf, 
+    faFilePdf,
     faSignOutAlt,
     faCalendarAlt,
     faClipboardList,
@@ -46,10 +47,8 @@ import {
     faShoppingCart,
     faBullhorn,
     faBoxOpen,
-
 } from "@fortawesome/free-solid-svg-icons";
-
-import { 
+import {
     faTiktok,
     faYoutube,
     faInstagram,
@@ -62,18 +61,18 @@ library.add(
     faFacebook,
     faInstagram,
     faYoutube,
-    faTiktok, 
+    faTiktok,
     faMoon,
-    faFileInvoiceDollar, 
-    faSun, 
-    faGlobe, 
-    faUser, 
-    faBell, 
-    faCog, 
+    faFileInvoiceDollar,
+    faSun,
+    faGlobe,
+    faUser,
+    faBell,
+    faCog,
     faTrash,
     faEye,
     faFilePdf,
-    faHome, 
+    faHome,
     faSignOutAlt,
     faClipboardList,
     faCalendarAlt,
@@ -94,11 +93,13 @@ library.add(
     faShoppingCart,
     faBullhorn,
     faBoxOpen
-
 );
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
-window.bootstrap = require('bootstrap');
+
+// Make bootstrap available globally if needed
+window.bootstrap = bootstrap;
+
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
     resolve: (name) => resolvePageComponent(`./Pages/${name}.vue`, import.meta.glob('./Pages/**/*.vue')),

@@ -40,12 +40,12 @@ class InvoiceItem extends Model
     // Accessors
     public function getFormattedUnitPriceAttribute(): string
     {
-        return '$' . number_format($this->unit_price, 2);
+        return 'R' . number_format($this->unit_price, 2);
     }
 
     public function getFormattedTotalAttribute(): string
     {
-        return '$' . number_format($this->total, 2);
+        return 'R' . number_format($this->total, 2);
     }
 
     // Methods

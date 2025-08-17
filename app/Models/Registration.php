@@ -55,6 +55,13 @@ class Registration extends Model
         'deleted_at' => 'datetime',
     ];
 
+        public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+
+
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -74,6 +81,12 @@ class Registration extends Model
         static::creating(function ($registration) {
             if (empty($registration->status)) {
                 $registration->status = 'pending';
+            }
+        });
+
+        static::updated(function ($registration) {
+            if ($registration->isDirty('status') && $registration->status === 'processed') {
+                app(\App\Services\InvoiceService::class)->createInitialInvoice($registration);
             }
         });
     }
