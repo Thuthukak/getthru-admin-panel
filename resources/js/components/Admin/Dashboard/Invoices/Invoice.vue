@@ -97,9 +97,8 @@
         <div class="filter-group">
           <select v-model="filters.service_type" @change="applyFilters" class="select-field">
             <option value="">All Services</option>
-            <option value="fiber">Fiber</option>
-            <option value="adsl">ADSL</option>
-            <option value="wireless">Wireless</option>
+            <option value="Home Internet">Home Internet</option>
+            <option value="Business Internet">Business Internet</option>
           </select>
         </div>
         <div class="filter-group">
@@ -997,9 +996,8 @@ export default {
     
     const formatServiceType = (serviceType) => {
       const typeMap = {
-        fiber: 'Fiber',
-        adsl: 'ADSL',
-        wireless: 'Wireless'
+        homeInternet: 'Home Internet',
+        businessInternet: 'Business Internet',
       }
       return typeMap[serviceType] || serviceType
     }

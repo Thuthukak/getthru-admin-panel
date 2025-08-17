@@ -22,65 +22,130 @@ class InvoiceController extends Controller
     /**
      * Display a listing of invoices with filtering and pagination
      */
-    public function index(Request $request): JsonResponse
-    {
-        Log::info('InvoiceController@index', $request->all());
+public function index(Request $request): JsonResponse
+{
+    Log::info('InvoiceController@index', $request->all());
+   
+    try {
+        // Debug: Check if Invoice model can be accessed
+        Log::info('Total invoices in DB: ' . Invoice::count());
         
+        $query = Invoice::query();
+        
+        // Debug: Check base query before relationships
+        Log::info('Base query count: ' . $query->count());
+        
+        // Add relationships - check if these exist
         try {
-            $query = Invoice::with(['registration', 'emailLogs']);
-
-            // Apply filters
-            if ($request->has('status') && $request->status !== '') {
-                $query->where('status', $request->status);
-            }
-
-            if ($request->has('search') && $request->search !== '') {
-                $search = $request->search;
-                $query->where(function ($q) use ($search) {
-                    $q->where('customer_name', 'like', "%{$search}%")
-                      ->orWhere('customer_email', 'like', "%{$search}%")
-                      ->orWhere('invoice_number', 'like', "%{$search}%");
-                });
-            }
-
-            if ($request->has('date_from') && $request->date_from !== '') {
-                $query->whereDate('billing_date', '>=', $request->date_from);
-            }
-
-            if ($request->has('date_to') && $request->date_to !== '') {
-                $query->whereDate('billing_date', '<=', $request->date_to);
-            }
-
-            if ($request->has('service_type') && $request->service_type !== '') {
-                $query->where('service_type', $request->service_type);
-            }
-
-            if ($request->has('overdue') && $request->overdue === 'true') {
-                $query->overdue();
-            }
-
-            // Sorting
-            $sortField = $request->get('sort_field', 'created_at');
-            $sortDirection = $request->get('sort_direction', 'desc');
-            $query->orderBy($sortField, $sortDirection);
-
-            // Pagination
-            $perPage = $request->get('per_page', 15);
-            $invoices = $query->paginate($perPage);
-
-            Log::info($invoices);
-            return response()->json([
-                'success' => true,
-                'data' => $invoices
-            ]);
-
+            $query->with(['registration', 'emailLogs']);
+            Log::info('Query with relationships built successfully');
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to retrieve invoices: ' . $e->getMessage()
-            ], 500);
+            Log::error('Error with relationships: ' . $e->getMessage());
+            // Fall back to query without relationships
+            $query = Invoice::query();
         }
+        
+        // Apply filters with debugging
+        if ($request->has('status') && $request->status !== '' && $request->status !== null) {
+            Log::info('Applying status filter: ' . $request->status);
+            $query->where('status', $request->status);
+        }
+        
+        if ($request->has('search') && $request->search !== '' && $request->search !== null) {
+            Log::info('Applying search filter: ' . $request->search);
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('customer_name', 'like', "%{$search}%")
+                  ->orWhere('customer_email', 'like', "%{$search}%")
+                  ->orWhere('invoice_number', 'like', "%{$search}%");
+            });
+        }
+        
+        if ($request->has('date_from') && $request->date_from !== '' && $request->date_from !== null) {
+            Log::info('Applying date_from filter: ' . $request->date_from);
+            $query->whereDate('billing_date', '>=', $request->date_from);
+        }
+        
+        if ($request->has('date_to') && $request->date_to !== '' && $request->date_to !== null) {
+            Log::info('Applying date_to filter: ' . $request->date_to);
+            $query->whereDate('billing_date', '<=', $request->date_to);
+        }
+        
+        if ($request->has('service_type') && $request->service_type !== '' && $request->service_type !== null) {
+            Log::info('Applying service_type filter: ' . $request->service_type);
+            $query->where('service_type', $request->service_type);
+        }
+        
+        if ($request->has('overdue') && $request->overdue === 'true') {
+            Log::info('Applying overdue filter');
+            try {
+                $query->overdue(); // This might be the issue if scope doesn't exist
+            } catch (\Exception $e) {
+                Log::error('Overdue scope error: ' . $e->getMessage());
+                // Fallback overdue logic
+                $query->where('due_date', '<', now())->where('status', '!=', 'paid');
+            }
+        }
+        
+        // Debug: Check count after filters
+        Log::info('Count after filters: ' . $query->count());
+        
+        // Sorting with validation
+        $sortField = $request->get('sort_field', 'created_at');
+        $sortDirection = $request->get('sort_direction', 'desc');
+        
+        // Validate sort field exists in table
+        $validSortFields = [
+            'id', 'invoice_number', 'customer_name', 'customer_email', 
+            'amount', 'billing_date', 'due_date', 'status', 'created_at', 'updated_at'
+        ];
+        
+        if (!in_array($sortField, $validSortFields)) {
+            Log::warning('Invalid sort field: ' . $sortField . ', using created_at');
+            $sortField = 'created_at';
+        }
+        
+        if (!in_array($sortDirection, ['asc', 'desc'])) {
+            Log::warning('Invalid sort direction: ' . $sortDirection . ', using desc');
+            $sortDirection = 'desc';
+        }
+        
+        Log::info("Sorting by: {$sortField} {$sortDirection}");
+        $query->orderBy($sortField, $sortDirection);
+        
+        // Pagination
+        $perPage = (int) $request->get('per_page', 15);
+        if ($perPage < 1 || $perPage > 100) {
+            Log::warning('Invalid per_page value: ' . $perPage . ', using 15');
+            $perPage = 15;
+        }
+        
+        Log::info('Attempting pagination with per_page: ' . $perPage);
+        
+        // Get the SQL query for debugging
+        Log::info('Final SQL query: ' . $query->toSql());
+        Log::info('Query bindings: ', $query->getBindings());
+        
+        $invoices = $query->paginate($perPage);
+        
+        Log::info('Pagination result - Total: ' . $invoices->total() . ', Count: ' . $invoices->count());
+        Log::info('Invoices data: ', $invoices->items());
+        
+        return response()->json([
+            'success' => true,
+            'data' => $invoices
+        ]);
+        
+    } catch (\Exception $e) {
+        Log::error('Exception in InvoiceController@index: ' . $e->getMessage());
+        Log::error('Exception trace: ' . $e->getTraceAsString());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to retrieve invoices: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     /**
      * Store a newly created invoice

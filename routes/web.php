@@ -99,6 +99,9 @@ Route::prefix('api')->group(function () {
     Route::put('/installations/{id}', [InstallationController::class, 'update']);
     Route::delete('/installations/{id}', [InstallationController::class, 'destroy']);
     Route::post('/installations/{id}/restore', [InstallationController::class, 'restore']);
+    // Invoice Data endpoints
+    Route::get('/invoices/stats', [InvoiceController::class, 'stats']);
+    Route::get('/invoices/registrations', [InvoiceController::class, 'getRegistrations']); 
     //invoices
     Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.show');
     Route::post('/invoices', [InvoiceController::class, 'store']); 
@@ -112,9 +115,7 @@ Route::prefix('api')->group(function () {
     Route::post('/invoices/generate-recurring', [InvoiceController::class, 'generateRecurring']);
     Route::post('/invoices/send-automatic', [InvoiceController::class, 'sendAutomatic']);
     Route::post('/invoices/mark-overdue', [InvoiceController::class, 'markOverdue']);
-    // Invoice Data endpoints
-    Route::get('/invoices/stats', [InvoiceController::class, 'stats']);
-    Route::get('/invoices/registrations', [InvoiceController::class, 'getRegistrations']); 
+
    
     
     // Helper endpoints
