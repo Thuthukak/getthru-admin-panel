@@ -74,7 +74,6 @@
           <table class="table table-striped table-hover">
             <thead class="table-dark">
               <tr>
-                <th>ID</th>
                 <th>Name</th>
                 <th>Contact</th>
                 <th>Service</th>
@@ -85,7 +84,7 @@
             </thead>
             <tbody>
               <tr v-for="installation in installations" :key="installation.id">
-                <td>{{ installation.id }}</td>
+                
                 <td>
                   <div>
                     <strong>{{ installation.name }} {{ installation.surname }}</strong>

@@ -8,6 +8,7 @@ import { Head } from '@inertiajs/vue3'
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from 'ziggy-js';
 
+
 // Bootstrap import
 import * as bootstrap from 'bootstrap';
 
@@ -47,6 +48,10 @@ import {
     faShoppingCart,
     faBullhorn,
     faBoxOpen,
+    faEdit,
+    faPenAlt,
+    faPen,
+    faCheckCircle
 } from "@fortawesome/free-solid-svg-icons";
 import {
     faTiktok,
@@ -82,6 +87,7 @@ library.add(
     faPaperPlane,
     faPaintBrush,
     faCheck,
+    faCheckCircle,
     faLightbulb,
     faPalette,
     faDesktop,
@@ -92,7 +98,10 @@ library.add(
     faCode,
     faShoppingCart,
     faBullhorn,
-    faBoxOpen
+    faBoxOpen,
+    faEdit,
+    faPen,
+    faPenAlt
 );
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
