@@ -16,6 +16,7 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\InstallationController;
+use App\Http\Controllers\PackagePriceController;
 use Inertia\Inertia;
 
 
@@ -115,6 +116,13 @@ Route::prefix('api')->group(function () {
     Route::post('/invoices/generate-recurring', [InvoiceController::class, 'generateRecurring']);
     Route::post('/invoices/send-automatic', [InvoiceController::class, 'sendAutomatic']);
     Route::post('/invoices/mark-overdue', [InvoiceController::class, 'markOverdue']);
+    // Packages
+    Route::get('/packages', [PackagePriceController::class, 'index']);
+    Route::post('/packages', [PackagePriceController::class, 'store']);
+    Route::get('/packages/service-types', [PackagePriceController::class, 'getServiceTypes']);
+    Route::get('/packages/{packagePrice}', [PackagePriceController::class, 'show']);
+    Route::put('/packages/{packagePrice}', [PackagePriceController::class, 'update']);
+    Route::delete('/packages/{packagePrice}', [PackagePriceController::class, 'destroy']);
 
    
     

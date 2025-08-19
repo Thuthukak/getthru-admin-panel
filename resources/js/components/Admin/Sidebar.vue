@@ -100,23 +100,23 @@ export default {
           label: 'Installations',
           icon: ['fas', 'clipboard-list'],
         },
-        // {
-        //   path: '/admin/quotations',
-        //   label: 'Quotations',
-        //   icon: ['fas', 'clipboard-list'],
-        // },
         {
           path: '/admin/invoices',
           label: 'Invoices',
           icon: ['fas', 'file-invoice-dollar'],
         },
         {
-          path: '/admin/services',
-          label: 'Services',
-          // graphic design services
-          icon: ['fas', 'paint-brush'],
-          
+           path: '/admin/packages',
+           label: 'Packages',
+           icon: ['fas', 'paint-brush'],
         },
+        // {
+        //   path: '/admin/services',
+        //   label: 'Services',
+        //   // graphic design services
+        //   icon: ['fas', 'paint-brush'],
+          
+        // },
         {
           path: '/admin/settings',
           label: 'Settings',

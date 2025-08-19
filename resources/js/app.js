@@ -51,7 +51,8 @@ import {
     faEdit,
     faPenAlt,
     faPen,
-    faCheckCircle
+    faCheckCircle,
+    faEllipsis
 } from "@fortawesome/free-solid-svg-icons";
 import {
     faTiktok,
@@ -101,7 +102,8 @@ library.add(
     faBoxOpen,
     faEdit,
     faPen,
-    faPenAlt
+    faPenAlt,
+    faEllipsis
 );
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';

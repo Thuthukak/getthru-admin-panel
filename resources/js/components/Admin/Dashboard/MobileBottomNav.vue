@@ -75,19 +75,19 @@ export default {
           icon: ['fas', 'home'],
         },
         {
-          path: '/admin/QueueManagement',
-          label: 'Queue',
-          icon: ['fas', 'user-plus'],
+          path: '/admin/installation',
+          label: 'Installations',
+          icon: ['fas', 'clipboard-list'],
         },
         {
-          path: '/admin/bookings',
-          label: 'Bookings',
-          icon: ['fas', 'calendar-alt'],
+          path: '/admin/invoices',
+          label: 'Invoices',
+          icon: ['fas', 'file-invoice-dollar'],
         },
         {
-          path: '/admin/services',
-          label: 'Services',
-          icon: ['fas', 'cut'],
+           path: '/admin/packages',
+           label: 'Packages',
+           icon: ['fas', 'paint-brush'],
         },
       ],
       moreItems: [

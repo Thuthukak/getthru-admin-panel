@@ -14,7 +14,7 @@
         <!-- Mobile Logo -->
         <div v-if="isMobile" class="d-flex align-items-center">
           <div class="bg-white text-white d-flex align-items-center justify-content-center  me-2">
-            <img src="/public/assets/images/penda_logo2.png" alt="Logo" class="w-32 h-8">
+            <img src="/assets/images/logo/getthru_adminlogo.png" alt="Logo" class="w-26 h-14">
           </div>
         </div>
       </div>
