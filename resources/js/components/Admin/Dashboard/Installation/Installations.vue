@@ -1,11 +1,11 @@
 <template>
   <div class="container mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="fw-bold mb-0">Installations</h1>
-    <button @click="goToAddInstallation" class="btn btn-primary">
-      <i class="bi bi-plus-circle me-1"></i> Add Installation
-    </button>
-  </div>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1 class="fw-bold mb-0">Installations</h1>
+      <button @click="goToAddInstallation" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i> Add Installation
+      </button>
+    </div>
     
     <!-- Filters Section -->
     <div class="card mb-4">
@@ -79,12 +79,12 @@
                 <th>Service</th>
                 <th>Installation Date</th>
                 <th>Status</th>
+                <th>Images</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="installation in installations" :key="installation.id">
-                
                 <td>
                   <div>
                     <strong>{{ installation.name }} {{ installation.surname }}</strong>
@@ -119,13 +119,39 @@
                     @change="updateStatus(installation)"
                     class="form-select form-select-sm"
                     :class="getStatusClass(installation.status)"
+                    :disabled="!canChangeStatus(installation)"
                   >
                     <option value="pending">Pending</option>
-                    <option value="confirmed">Confirmed</option>
                     <option value="in_progress">In Progress</option>
-                    <option value="processed">Processed</option>
+                    <option value="processed" :disabled="!installation.images_uploaded">Processed</option>
                     <option value="cancelled">Cancelled</option>
                   </select>
+                  <div v-if="installation.status === 'in_progress' && !installation.images_uploaded" class="text-warning small mt-1">
+                    <i class="bi bi-exclamation-triangle"></i> Images required
+                  </div>
+                </td>
+                <td>
+                  <div class="d-flex align-items-center">
+                    <span class="badge me-2" :class="getImagesBadgeClass(installation)">
+                      {{ installation.images_count || 0 }}/3
+                    </span>
+                    <button 
+                      v-if="installation.status === 'in_progress'" 
+                      @click="openImageUpload(installation)"
+                      class="btn btn-sm btn-outline-info"
+                      title="Upload Images"
+                    >
+                      <i class="bi bi-camera"></i>
+                    </button>
+                    <button 
+                      v-if="installation.images_count > 0"
+                      @click="viewImages(installation)"
+                      class="btn btn-sm btn-outline-secondary ms-1"
+                      title="View Images"
+                    >
+                      <i class="bi bi-eye"></i>
+                    </button>
+                  </div>
                 </td>
                 <td>
                   <button 
@@ -182,17 +208,64 @@
       @close="closeDetailsModal"
       @edit="handleEditInstallation"
     />
+
+    <ImageUploadModal 
+        :isOpen="showImageUpload" 
+        :installation="selectedInstallation"
+        @close="closeImageUpload"
+        @upload-success="handleUploadSuccess"
+        @upload-error="handleUploadError"
+      />
+
+    <!-- Image Viewer Modal -->
+    <div v-if="showImageViewer" class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.8)">
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              Installation Images - {{ selectedInstallation?.name }} {{ selectedInstallation?.surname }}
+            </h5>
+            <button @click="closeImageViewer" type="button" class="btn-close"></button>
+          </div>
+          <div class="modal-body">
+            <div v-if="installationImages.length > 0" class="row g-3">
+              <div v-for="image in installationImages" :key="image.id" class="col-md-4">
+                <div class="card">
+                  <div class="card-header text-center">
+                    <strong>{{ formatImageType(image.image_type) }}</strong>
+                    <small class="text-muted d-block">{{ formatDate(image.uploaded_at) }}</small>
+                  </div>
+                  <div class="card-body p-0">
+                    <img 
+                      :src="'/storage/' + image.image_path" 
+                      class="img-fluid w-100"
+                      style="max-height: 300px; object-fit: contain;"
+                      :alt="formatImageType(image.image_type)"
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="text-center">
+              <p class="text-muted">No images uploaded yet.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import axios from 'axios'
 import InstallationDetailsModal from './InstallationDetailsModal.vue'
+import ImageUploadModal from './ImageUploadModal.vue'
 
 export default {
   name: 'Installations',
   components: {
-    InstallationDetailsModal
+    InstallationDetailsModal,
+    ImageUploadModal
   },
   data() {
     return {
@@ -215,19 +288,25 @@ export default {
       },
       serviceTypes: [],
       selectedInstallation: null,
-      showDetailsModal: false
+      showDetailsModal: false,
+      showImageUpload: false,
+      showImageViewer: false,
+      installationImages: [],
     }
+  },
+  computed: {
+   
   },
   mounted() {
     this.fetchInstallations()
     this.fetchServiceTypes()
   },
   methods: {
-
     //go to add installation page
     goToAddInstallation() {
       window.location.href = '/reg-form';
     },
+    
     // Fetch installations
     async fetchInstallations(page = 1) {
       this.loading = true
@@ -266,6 +345,13 @@ export default {
     },
     
     async updateStatus(installation) {
+      // Prevent changing to processed if images not uploaded
+      if (installation.status === 'processed' && !installation.images_uploaded) {
+        this.showError('Cannot mark as processed without uploading installation images')
+        this.fetchInstallations(this.pagination.current_page)
+        return
+      }
+      
       try {
         await axios.patch(`/api/installations/${installation.id}/status`, {
           status: installation.status
@@ -277,6 +363,11 @@ export default {
         // Revert the change
         this.fetchInstallations(this.pagination.current_page)
       }
+    },
+    
+    canChangeStatus(installation) {
+      // Allow changing to processed only if images are uploaded
+      return !(installation.status === 'processed' && !installation.images_uploaded)
     },
     
     async deleteInstallation(id) {
@@ -303,10 +394,42 @@ export default {
     },
     
     handleEditInstallation(installation) {
-      // Handle edit functionality here
-      // You can emit an event, navigate to edit page, or open an edit modal
       console.log('Edit installation:', installation)
       this.showSuccess(`Edit functionality for ${installation.name} ${installation.surname} would be implemented here`)
+    },
+    
+    // Image upload methods
+    openImageUpload(installation) {
+      this.selectedInstallation = installation
+      this.showImageUpload = true
+      this.uploadedImages = {}
+    },
+    
+    closeImageUpload() {
+      this.showImageUpload = false
+      this.selectedInstallation = null
+      this.uploadedImages = {}
+      this.uploadProgress = 0
+    },
+
+    
+    async viewImages(installation) {
+      this.selectedInstallation = installation
+      this.showImageViewer = true
+      
+      try {
+        const response = await axios.get(`/api/installations/${installation.id}/images`)
+        this.installationImages = response.data
+      } catch (error) {
+        console.error('Error fetching images:', error)
+        this.showError('Failed to load images')
+      }
+    },
+    
+    closeImageViewer() {
+      this.showImageViewer = false
+      this.selectedInstallation = null
+      this.installationImages = []
     },
     
     clearFilters() {
@@ -331,16 +454,13 @@ export default {
       const current = this.pagination.current_page
       const last = this.pagination.last_page
       
-      // Always show first page
       if (current > 3) pages.push(1)
       if (current > 4) pages.push('...')
       
-      // Show pages around current page
       for (let i = Math.max(1, current - 2); i <= Math.min(last, current + 2); i++) {
         pages.push(i)
       }
       
-      // Always show last page
       if (current < last - 3) pages.push('...')
       if (current < last - 2) pages.push(last)
       
@@ -352,10 +472,17 @@ export default {
         'pending': 'text-warning',
         'confirmed': 'text-info',
         'in_progress': 'text-primary',
-        'completed': 'text-success',
+        'processed': 'text-success',
         'cancelled': 'text-danger'
       }
       return classes[status] || ''
+    },
+    
+    getImagesBadgeClass(installation) {
+      const count = installation.images_count || 0
+      if (count === 3) return 'bg-success'
+      if (count > 0) return 'bg-warning'
+      return 'bg-secondary'
     },
     
     formatDate(date) {
@@ -363,14 +490,21 @@ export default {
       return new Date(date).toLocaleDateString()
     },
     
+    formatImageType(type) {
+      const types = {
+        'before': 'Before Installation',
+        'during': 'During Installation', 
+        'after': 'After Installation'
+      }
+      return types[type] || type
+    },
+    
     showSuccess(message) {
-      // You can integrate with your notification system here
-      alert(message) // Simple alert for now
+      alert(message)
     },
     
     showError(message) {
-      // You can integrate with your notification system here
-      alert(message) // Simple alert for now
+      alert(message)
     }
   }
 }
@@ -388,5 +522,22 @@ export default {
 .spinner-border {
   width: 3rem;
   height: 3rem;
+}
+
+.modal {
+  z-index: 1050;
+}
+
+.upload-placeholder {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.upload-placeholder:hover {
+  background-color: #e9ecef !important;
+}
+
+.progress {
+  height: 1rem;
 }
 </style>

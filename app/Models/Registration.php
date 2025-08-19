@@ -40,6 +40,8 @@ class Registration extends Model
         'comments',
         'status',
         'processed_at',
+        'images_uploaded',
+        'images_required'
     ];
 
     /**
@@ -53,7 +55,37 @@ class Registration extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
+        'images_uploaded' => 'boolean',
+        'images_required' => 'boolean'
     ];
+
+
+    // ==================== Installations ====================
+
+    /**
+     * Get the images for the installation
+     */
+    public function images()
+    {
+        return $this->hasMany(InstallationImage::class);
+    }
+
+    /**
+     * Check if installation has all required images
+     */
+    public function hasAllImages()
+    {
+        return $this->images()->count() >= 3;
+    }
+
+    /**
+     * Get images count attribute
+     */
+    public function getImagesCountAttribute()
+    {
+        return $this->images()->count();
+    }
+
 
         public function invoices()
     {
@@ -148,6 +180,32 @@ class Registration extends Model
     }
 
     // ==================== SCOPES ====================
+
+    /**
+     * Scope for installations with complete images
+     */
+    public function scopeWithCompleteImages($query)
+    {
+        return $query->whereHas('images', function($q) {
+            $q->selectRaw('registration_id, COUNT(*) as images_count')
+              ->groupBy('registration_id')
+              ->havingRaw('COUNT(*) >= 3');
+        });
+    }
+
+    /**
+     * Scope for installations without complete images
+     */
+    public function scopeWithoutCompleteImages($query)
+    {
+        return $query->whereDoesntHave('images')
+            ->orWhereHas('images', function($q) {
+                $q->selectRaw('registration_id, COUNT(*) as images_count')
+                  ->groupBy('registration_id')
+                  ->havingRaw('COUNT(*) < 3');
+            });
+    }
+
 
     /**
      * Scope to filter by status

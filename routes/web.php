@@ -100,6 +100,9 @@ Route::prefix('api')->group(function () {
     Route::put('/installations/{id}', [InstallationController::class, 'update']);
     Route::delete('/installations/{id}', [InstallationController::class, 'destroy']);
     Route::post('/installations/{id}/restore', [InstallationController::class, 'restore']);
+    Route::post('/installations/{id}/images', [InstallationController::class, 'uploadImages']);
+    Route::get('/installations/{id}/images', [InstallationController::class, 'getImages']);
+    Route::delete('/installations/{id}/images/{imageId}', [InstallationController::class, 'deleteImage']);
     // Invoice Data endpoints
     Route::get('/invoices/stats', [InvoiceController::class, 'stats']);
     Route::get('/invoices/registrations', [InvoiceController::class, 'getRegistrations']); 

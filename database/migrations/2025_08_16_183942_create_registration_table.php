@@ -27,7 +27,7 @@ return new class extends Migration
             $table->string('deposit_payment');
             $table->string('how_did_you_know')->nullable();
             $table->text('comments')->nullable();
-            $table->enum('status', ['pending', 'processed', 'cancelled'])->default('pending');
+            $table->enum('status', ['pending','in_progress', 'processed', 'cancelled'])->default('pending');
             $table->timestamp('processed_at')->nullable();
             $table->timestamps();
             $table->softDeletes();

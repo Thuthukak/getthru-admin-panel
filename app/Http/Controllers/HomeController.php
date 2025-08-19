@@ -34,7 +34,7 @@ class HomeController extends BaseController
             'title' => 'Admin Authentication',
             'description' => 'Admin Authentication page for Get Thru',
             'keywords' => 'Penda Graphics, Web Design, Graphic Design, Branding, E-commerce, Digital Marketing',
-            'og_title' => 'Admin Authentication | Penda Graphics',
+            'og_title' => 'Admin Authentication | Get Thru',
             'hero_image' => asset('assets/images/logo/getthru_banner.png'),
         ]);
 

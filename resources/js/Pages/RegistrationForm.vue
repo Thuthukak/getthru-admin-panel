@@ -400,7 +400,7 @@ export default {
         })
         
         if (response.ok) {
-          displayStatus('Form submitted successfully! We\'ll contact you soon.', 'success')
+          displayStatus('Order placed successfully! We\'ll contact you soon.', 'success')
           resetForm()
         } else {
           const errorData = await response.json()
