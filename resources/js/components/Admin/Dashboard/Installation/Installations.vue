@@ -408,8 +408,18 @@ export default {
     closeImageUpload() {
       this.showImageUpload = false
       this.selectedInstallation = null
-      this.uploadedImages = {}
-      this.uploadProgress = 0
+      // this.uploadedImages = {}
+      // this.uploadProgress = 0
+    },
+
+    handleUploadSuccess(message) {
+      this.showSuccess(message)
+      // Refresh the installations list to update the images_count and images_uploaded status
+      this.fetchInstallations(this.pagination.current_page)
+    },
+
+    handleUploadError(message) {
+      this.showError(message)
     },
 
     

@@ -49,7 +49,7 @@
     <div class="mt-auto">
       <button 
         @click="logout" 
-        class="flex items-center w-full text-white p-2 rounded hover-effect text-red-400 group relative"
+        class="flex items-center w-full text-white p-2 rounded red-hover-effect text-red-400 group relative"
         :class="{ 'justify-center': collapsed }"
       >
         <font-awesome-icon :icon="['fas', 'sign-out-alt']" class="min-w-[20px]" />
@@ -148,6 +148,15 @@ export default {
 
 .hover-effect:hover {
   background-color: rgba(59, 130, 246, 0.3);
+  transform: translateX(2px);
+}
+.red-hover-effect {
+  text-decoration: none;
+  transition: all 0.3s ease-in-out;
+}
+
+.red-hover-effect:hover {
+  background-color: #57df26c5;
   transform: translateX(2px);
 }
 

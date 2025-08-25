@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class InstallationController extends Controller
 {
@@ -289,6 +290,20 @@ class InstallationController extends Controller
      */
     public function stats(): JsonResponse
     {
+        // Get image counts using a simpler approach
+        $imageStats = DB::select("
+            SELECT 
+                SUM(CASE WHEN image_count = 0 THEN 1 ELSE 0 END) as without_any_images,
+                SUM(CASE WHEN image_count >= 3 THEN 1 ELSE 0 END) as with_sufficient_images,
+                SUM(CASE WHEN image_count > 0 AND image_count < 3 THEN 1 ELSE 0 END) as with_insufficient_images
+            FROM (
+                SELECT r.id, COUNT(i.id) as image_count 
+                FROM registrations r 
+                LEFT JOIN installation_images i ON r.id = i.registration_id 
+                GROUP BY r.id
+            ) as registration_image_counts
+        ")[0];
+
         $stats = [
             'total' => Registration::count(),
             'pending' => Registration::where('status', 'pending')->count(),
@@ -296,19 +311,14 @@ class InstallationController extends Controller
             'in_progress' => Registration::where('status', 'in_progress')->count(),
             'processed' => Registration::where('status', 'processed')->count(),
             'cancelled' => Registration::where('status', 'cancelled')->count(),
-            'with_images' => Registration::whereHas('images', function($query) {
-                $query->havingRaw('COUNT(*) >= 3');
-            })->count(),
-            'without_images' => Registration::whereDoesntHave('images')
-                ->orWhereHas('images', function($query) {
-                    $query->havingRaw('COUNT(*) < 3');
-                })->count(),
+            'with_images' => $imageStats->with_sufficient_images ?? 0,
+            'without_images' => ($imageStats->without_any_images ?? 0) + ($imageStats->with_insufficient_images ?? 0),
             'this_month' => Registration::whereMonth('created_at', Carbon::now()->month)
                 ->whereYear('created_at', Carbon::now()->year)
                 ->count(),
             'today' => Registration::whereDate('created_at', Carbon::today())->count()
         ];
-        
+    
         return response()->json($stats);
     }
     
