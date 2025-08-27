@@ -16,8 +16,7 @@ class Invoice extends Model
         'customer_phone',
         'customer_address',
         'invoice_number',
-        'service_type',
-        'package',
+        'package_price_id', // Use this instead of service_type and package
         'amount',
         'payment_period',
         'billing_date',
@@ -45,9 +44,30 @@ class Invoice extends Model
         return $this->belongsTo(Registration::class);
     }
 
+    public function packagePrice()
+    {
+        return $this->belongsTo(PackagePrice::class);
+    }
+
     public function emailLogs()
     {
         return $this->hasMany(InvoiceEmailLog::class);
+    }
+
+    // Accessor methods for backward compatibility and easy access
+    public function getServiceTypeAttribute()
+    {
+        return $this->packagePrice?->service_type;
+    }
+
+    public function getPackageAttribute()
+    {
+        return $this->packagePrice?->package;
+    }
+
+    public function getPackagePriceValueAttribute()
+    {
+        return $this->packagePrice?->price;
     }
 
     public function generateInvoiceNumber()
@@ -106,5 +126,21 @@ class Invoice extends Model
     public function scopeDueToday($query)
     {
         return $query->whereDate('billing_date', today());
+    }
+
+    // Scope to filter by service type through package_prices relationship
+    public function scopeByServiceType($query, $serviceType)
+    {
+        return $query->whereHas('packagePrice', function ($q) use ($serviceType) {
+            $q->where('service_type', $serviceType);
+        });
+    }
+
+    // Scope to filter by package through package_prices relationship
+    public function scopeByPackage($query, $package)
+    {
+        return $query->whereHas('packagePrice', function ($q) use ($package) {
+            $q->where('package', $package);
+        });
     }
 }

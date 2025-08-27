@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Invoice;
 use App\Models\Registration;
+use App\Models\PackagePrice;
 use App\Services\InvoiceService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -22,130 +23,133 @@ class InvoiceController extends Controller
     /**
      * Display a listing of invoices with filtering and pagination
      */
-public function index(Request $request): JsonResponse
-{
-    Log::info('InvoiceController@index', $request->all());
-   
-    try {
-        // Debug: Check if Invoice model can be accessed
-        Log::info('Total invoices in DB: ' . Invoice::count());
-        
-        $query = Invoice::query();
-        
-        // Debug: Check base query before relationships
-        Log::info('Base query count: ' . $query->count());
-        
-        // Add relationships - check if these exist
+    public function index(Request $request): JsonResponse
+    {
+        Log::info('InvoiceController@index', $request->all());
+       
         try {
-            $query->with(['registration', 'emailLogs']);
-            Log::info('Query with relationships built successfully');
-        } catch (\Exception $e) {
-            Log::error('Error with relationships: ' . $e->getMessage());
-            // Fall back to query without relationships
+            // Debug: Check if Invoice model can be accessed
+            Log::info('Total invoices in DB: ' . Invoice::count());
+            
             $query = Invoice::query();
-        }
-        
-        // Apply filters with debugging
-        if ($request->has('status') && $request->status !== '' && $request->status !== null) {
-            Log::info('Applying status filter: ' . $request->status);
-            $query->where('status', $request->status);
-        }
-        
-        if ($request->has('search') && $request->search !== '' && $request->search !== null) {
-            Log::info('Applying search filter: ' . $request->search);
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('customer_name', 'like', "%{$search}%")
-                  ->orWhere('customer_email', 'like', "%{$search}%")
-                  ->orWhere('invoice_number', 'like', "%{$search}%");
-            });
-        }
-        
-        if ($request->has('date_from') && $request->date_from !== '' && $request->date_from !== null) {
-            Log::info('Applying date_from filter: ' . $request->date_from);
-            $query->whereDate('billing_date', '>=', $request->date_from);
-        }
-        
-        if ($request->has('date_to') && $request->date_to !== '' && $request->date_to !== null) {
-            Log::info('Applying date_to filter: ' . $request->date_to);
-            $query->whereDate('billing_date', '<=', $request->date_to);
-        }
-        
-        if ($request->has('service_type') && $request->service_type !== '' && $request->service_type !== null) {
-            Log::info('Applying service_type filter: ' . $request->service_type);
-            $query->where('service_type', $request->service_type);
-        }
-        
-        if ($request->has('overdue') && $request->overdue === 'true') {
-            Log::info('Applying overdue filter');
+            
+            // Add relationships including packagePrice
             try {
-                $query->overdue(); // This might be the issue if scope doesn't exist
+                $query->with(['registration', 'packagePrice', 'emailLogs']);
+                Log::info('Query with relationships built successfully');
             } catch (\Exception $e) {
-                Log::error('Overdue scope error: ' . $e->getMessage());
-                // Fallback overdue logic
-                $query->where('due_date', '<', now())->where('status', '!=', 'paid');
+                Log::error('Error with relationships: ' . $e->getMessage());
+                // Fall back to query without relationships
+                $query = Invoice::query();
             }
+            
+            // Apply filters with debugging
+            if ($request->has('status') && $request->status !== '' && $request->status !== null) {
+                Log::info('Applying status filter: ' . $request->status);
+                $query->where('status', $request->status);
+            }
+            
+            if ($request->has('search') && $request->search !== '' && $request->search !== null) {
+                Log::info('Applying search filter: ' . $request->search);
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('customer_name', 'like', "%{$search}%")
+                      ->orWhere('customer_email', 'like', "%{$search}%")
+                      ->orWhere('invoice_number', 'like', "%{$search}%");
+                });
+            }
+            
+            if ($request->has('date_from') && $request->date_from !== '' && $request->date_from !== null) {
+                Log::info('Applying date_from filter: ' . $request->date_from);
+                $query->whereDate('billing_date', '>=', $request->date_from);
+            }
+            
+            if ($request->has('date_to') && $request->date_to !== '' && $request->date_to !== null) {
+                Log::info('Applying date_to filter: ' . $request->date_to);
+                $query->whereDate('billing_date', '<=', $request->date_to);
+            }
+            
+            // Filter by service type using packagePrice relationship
+            if ($request->has('service_type') && $request->service_type !== '' && $request->service_type !== null) {
+                Log::info('Applying service_type filter: ' . $request->service_type);
+                $query->byServiceType($request->service_type);
+            }
+            
+            // Filter by package using packagePrice relationship
+            if ($request->has('package') && $request->package !== '' && $request->package !== null) {
+                Log::info('Applying package filter: ' . $request->package);
+                $query->byPackage($request->package);
+            }
+            
+            if ($request->has('overdue') && $request->overdue === 'true') {
+                Log::info('Applying overdue filter');
+                try {
+                    $query->overdue();
+                } catch (\Exception $e) {
+                    Log::error('Overdue scope error: ' . $e->getMessage());
+                    // Fallback overdue logic
+                    $query->where('due_date', '<', now())->where('status', '!=', 'paid');
+                }
+            }
+            
+            // Debug: Check count after filters
+            Log::info('Count after filters: ' . $query->count());
+            
+            // Sorting with validation
+            $sortField = $request->get('sort_field', 'created_at');
+            $sortDirection = $request->get('sort_direction', 'desc');
+            
+            // Validate sort field exists in table
+            $validSortFields = [
+                'id', 'invoice_number', 'customer_name', 'customer_email', 
+                'amount', 'billing_date', 'due_date', 'status', 'created_at', 'updated_at'
+            ];
+            
+            if (!in_array($sortField, $validSortFields)) {
+                Log::warning('Invalid sort field: ' . $sortField . ', using created_at');
+                $sortField = 'created_at';
+            }
+            
+            if (!in_array($sortDirection, ['asc', 'desc'])) {
+                Log::warning('Invalid sort direction: ' . $sortDirection . ', using desc');
+                $sortDirection = 'desc';
+            }
+            
+            Log::info("Sorting by: {$sortField} {$sortDirection}");
+            $query->orderBy($sortField, $sortDirection);
+            
+            // Pagination
+            $perPage = (int) $request->get('per_page', 15);
+            if ($perPage < 1 || $perPage > 100) {
+                Log::warning('Invalid per_page value: ' . $perPage . ', using 15');
+                $perPage = 15;
+            }
+            
+            Log::info('Attempting pagination with per_page: ' . $perPage);
+            
+            // Get the SQL query for debugging
+            Log::info('Final SQL query: ' . $query->toSql());
+            Log::info('Query bindings: ', $query->getBindings());
+            
+            $invoices = $query->paginate($perPage);
+            
+            Log::info('Pagination result - Total: ' . $invoices->total() . ', Count: ' . $invoices->count());
+            
+            return response()->json([
+                'success' => true,
+                'data' => $invoices
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Exception in InvoiceController@index: ' . $e->getMessage());
+            Log::error('Exception trace: ' . $e->getTraceAsString());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve invoices: ' . $e->getMessage()
+            ], 500);
         }
-        
-        // Debug: Check count after filters
-        Log::info('Count after filters: ' . $query->count());
-        
-        // Sorting with validation
-        $sortField = $request->get('sort_field', 'created_at');
-        $sortDirection = $request->get('sort_direction', 'desc');
-        
-        // Validate sort field exists in table
-        $validSortFields = [
-            'id', 'invoice_number', 'customer_name', 'customer_email', 
-            'amount', 'billing_date', 'due_date', 'status', 'created_at', 'updated_at'
-        ];
-        
-        if (!in_array($sortField, $validSortFields)) {
-            Log::warning('Invalid sort field: ' . $sortField . ', using created_at');
-            $sortField = 'created_at';
-        }
-        
-        if (!in_array($sortDirection, ['asc', 'desc'])) {
-            Log::warning('Invalid sort direction: ' . $sortDirection . ', using desc');
-            $sortDirection = 'desc';
-        }
-        
-        Log::info("Sorting by: {$sortField} {$sortDirection}");
-        $query->orderBy($sortField, $sortDirection);
-        
-        // Pagination
-        $perPage = (int) $request->get('per_page', 15);
-        if ($perPage < 1 || $perPage > 100) {
-            Log::warning('Invalid per_page value: ' . $perPage . ', using 15');
-            $perPage = 15;
-        }
-        
-        Log::info('Attempting pagination with per_page: ' . $perPage);
-        
-        // Get the SQL query for debugging
-        Log::info('Final SQL query: ' . $query->toSql());
-        Log::info('Query bindings: ', $query->getBindings());
-        
-        $invoices = $query->paginate($perPage);
-        
-        Log::info('Pagination result - Total: ' . $invoices->total() . ', Count: ' . $invoices->count());
-        Log::info('Invoices data: ', $invoices->items());
-        
-        return response()->json([
-            'success' => true,
-            'data' => $invoices
-        ]);
-        
-    } catch (\Exception $e) {
-        Log::error('Exception in InvoiceController@index: ' . $e->getMessage());
-        Log::error('Exception trace: ' . $e->getTraceAsString());
-        
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to retrieve invoices: ' . $e->getMessage()
-        ], 500);
     }
-}
 
     /**
      * Store a newly created invoice
@@ -154,6 +158,7 @@ public function index(Request $request): JsonResponse
     {
         $request->validate([
             'registration_id' => 'required|exists:registrations,id',
+            'package_price_id' => 'nullable|exists:package_prices,id', // Allow direct package_price_id
             'amount' => 'required|numeric|min:0',
             'billing_date' => 'required|date',
             'due_date' => 'required|date|after_or_equal:billing_date',
@@ -162,7 +167,25 @@ public function index(Request $request): JsonResponse
         ]);
 
         try {
-            $registration = Registration::findOrFail($request->registration_id);
+            $registration = Registration::with('packagePrice')->findOrFail($request->registration_id);
+            
+            // Use provided package_price_id or get from registration
+            $packagePriceId = $request->package_price_id ?: $registration->package_price_id;
+            
+            if (!$packagePriceId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Package price information is required'
+                ], 422);
+            }
+            
+            $packagePrice = PackagePrice::find($packagePriceId);
+            if (!$packagePrice) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid package price selected'
+                ], 422);
+            }
 
             $invoice = Invoice::create([
                 'registration_id' => $registration->id,
@@ -171,8 +194,7 @@ public function index(Request $request): JsonResponse
                 'customer_phone' => $registration->phone,
                 'customer_address' => $registration->address,
                 'invoice_number' => (new Invoice())->generateInvoiceNumber(),
-                'service_type' => $registration->service_type,
-                'package' => $registration->package,
+                'package_price_id' => $packagePriceId, // Store package_price_id instead of individual fields
                 'amount' => $request->amount,
                 'payment_period' => $registration->payment_period,
                 'billing_date' => $request->billing_date,
@@ -188,7 +210,7 @@ public function index(Request $request): JsonResponse
             return response()->json([
                 'success' => true,
                 'message' => 'Invoice created successfully',
-                'data' => $invoice->load('registration')
+                'data' => $invoice->load(['registration', 'packagePrice'])
             ], 201);
 
         } catch (\Exception $e) {
@@ -205,7 +227,7 @@ public function index(Request $request): JsonResponse
     public function show(Invoice $invoice): JsonResponse
     {
         try {
-            $invoice->load(['registration', 'emailLogs']);
+            $invoice->load(['registration', 'packagePrice', 'emailLogs']);
 
             return response()->json([
                 'success' => true,
@@ -226,6 +248,7 @@ public function index(Request $request): JsonResponse
     public function update(Request $request, Invoice $invoice): JsonResponse
     {
         $request->validate([
+            'package_price_id' => 'sometimes|exists:package_prices,id',
             'amount' => 'sometimes|numeric|min:0',
             'billing_date' => 'sometimes|date',
             'due_date' => 'sometimes|date',
@@ -236,7 +259,7 @@ public function index(Request $request): JsonResponse
 
         try {
             $invoice->update($request->only([
-                'amount', 'billing_date', 'due_date', 'status', 'notes', 'is_recurring'
+                'package_price_id', 'amount', 'billing_date', 'due_date', 'status', 'notes', 'is_recurring'
             ]));
 
             // Update next billing date if recurring status changed
@@ -260,7 +283,7 @@ public function index(Request $request): JsonResponse
             return response()->json([
                 'success' => true,
                 'message' => 'Invoice updated successfully',
-                'data' => $invoice->load('registration')
+                'data' => $invoice->load(['registration', 'packagePrice'])
             ]);
 
         } catch (\Exception $e) {
@@ -451,16 +474,19 @@ public function index(Request $request): JsonResponse
     public function getRegistrations(): JsonResponse
     {
         try {
-            $registrations = Registration::where('status', 'processed')
-                ->select('id', 'name', 'surname', 'email', 'service_type', 'package')
+            $registrations = Registration::with('packagePrice')
+                ->where('status', 'processed')
+                ->select('id', 'name', 'surname', 'email', 'package_price_id')
                 ->get()
                 ->map(function ($registration) {
                     return [
                         'id' => $registration->id,
                         'name' => $registration->full_name,
                         'email' => $registration->email,
-                        'service_type' => $registration->service_type,
-                        'package' => $registration->package
+                        'package_price_id' => $registration->package_price_id,
+                        'service_type' => $registration->packagePrice?->service_type,
+                        'package' => $registration->packagePrice?->package,
+                        'price' => $registration->packagePrice?->price
                     ];
                 });
 
@@ -473,6 +499,52 @@ public function index(Request $request): JsonResponse
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to get registrations: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get available service types from package_prices
+     */
+    public function getServiceTypes(): JsonResponse
+    {
+        try {
+            $serviceTypes = PackagePrice::select('service_type')
+                ->distinct()
+                ->pluck('service_type');
+
+            return response()->json([
+                'success' => true,
+                'data' => $serviceTypes
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get service types: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get available packages for a service type
+     */
+    public function getPackages(string $serviceType): JsonResponse
+    {
+        try {
+            $packages = PackagePrice::where('service_type', $serviceType)
+                ->select('id', 'package', 'price')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $packages
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get packages: ' . $e->getMessage()
             ], 500);
         }
     }

@@ -114,6 +114,8 @@ Route::prefix('api')->group(function () {
     Route::get('/invoices/{invoice}', [InvoiceController::class, 'show']); 
     Route::put('/invoices/{invoice}', [InvoiceController::class, 'update']); 
     Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy']);
+    Route::get('/invoices/service-types', [InvoiceController::class, 'getServiceTypes']);
+    Route::get('/invoices/service-types/{serviceType}/packages', [InvoiceController::class, 'getPackages']);
     // Invoice actions
     Route::post('/invoices/{invoice}/send', [InvoiceController::class, 'sendInvoice']);
     Route::post('/invoices/send-bulk', [InvoiceController::class, 'sendBulkInvoices']);
