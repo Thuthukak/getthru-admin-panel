@@ -90,6 +90,8 @@ Route::prefix('api')->group(function () {
 
     //registration form
     Route::post('/reg-form-submit', [RegistrationController::class, 'store'])->name('reg-form.submit');
+    Route::get('/packages/{serviceType}', [RegistrationController::class, 'getPackages']);
+    Route::get('/service-types', [RegistrationController::class, 'getServiceTypes']);
 
     //installations
     Route::get('/installations', [InstallationController::class, 'index'])->name('installations.show');

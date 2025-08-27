@@ -219,17 +219,17 @@ export default {
       fileInputs: {}, // Store file input refs here
       imageTypes: [
         { 
-          value: 'before', 
+          value: 'inside', 
           label: 'Inside Setup',
           description: 'Show the setup inside the building'
         },
         { 
-          value: 'during', 
+          value: 'outside', 
           label: 'Outside Setup',
           description: 'Show the setup outside the building'
         },
         { 
-          value: 'after', 
+          value: 'cabling', 
           label: 'Cabling',
           description: 'Show the cabling setup'
         }

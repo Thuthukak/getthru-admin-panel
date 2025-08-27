@@ -110,9 +110,9 @@ class InstallationController extends Controller
     {
         $request->validate([
             'images' => 'required|array|size:3',
-            'images.before' => 'required|image|mimes:jpeg,jpg,png,webp|max:5120',
-            'images.during' => 'required|image|mimes:jpeg,jpg,png,webp|max:5120', 
-            'images.after' => 'required|image|mimes:jpeg,jpg,png,webp|max:5120',
+            'images.inside' => 'required|image|mimes:jpeg,jpg,png,webp|max:5120',
+            'images.outside' => 'required|image|mimes:jpeg,jpg,png,webp|max:5120', 
+            'images.cabling' => 'required|image|mimes:jpeg,jpg,png,webp|max:5120',
         ]);
         
         $installation = Registration::findOrFail($id);
@@ -121,7 +121,7 @@ class InstallationController extends Controller
         InstallationImage::where('registration_id', $id)->delete();
         
         $uploadedImages = [];
-        $allowedTypes = ['before', 'during', 'after'];
+        $allowedTypes = ['inside', 'outside', 'cabling'];
         
         foreach ($allowedTypes as $type) {
             if ($request->hasFile("images.{$type}")) {

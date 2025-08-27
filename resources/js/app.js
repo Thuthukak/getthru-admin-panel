@@ -60,6 +60,7 @@ import {
     faInstagram,
     faFacebook
 } from "@fortawesome/free-brands-svg-icons";
+import { faPhone } from '@fortawesome/free-solid-svg-icons/faPhone';
 
 // Add icons to library
 library.add(
@@ -103,7 +104,8 @@ library.add(
     faEdit,
     faPen,
     faPenAlt,
-    faEllipsis
+    faEllipsis,
+    faPhone
 );
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';

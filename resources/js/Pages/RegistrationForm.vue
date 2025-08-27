@@ -142,26 +142,36 @@
             <div>
               <label class="block text-gray-700 text-lg fw-bold font-medium mb-3">Select Package *</label>
               <div class="space-y-3">
-                <label class="custom-radio-container">
-                  <input v-model="formData.package" type="radio" value="100gb" class="custom-radio-input" />
-                  <span class="custom-radio-checkmark"></span>
-                  <span class="custom-radio-text">100GB - R300</span>
-                </label>
-                <label class="custom-radio-container">
-                  <input v-model="formData.package" type="radio" value="Basic" class="custom-radio-input" />
-                  <span class="custom-radio-checkmark"></span>
-                  <span class="custom-radio-text">Basic - R 430.00 (Unlimited 10/10Mbps)</span>
-                </label>
-                <label class="custom-radio-container">
-                  <input v-model="formData.package" type="radio" value="Standard" class="custom-radio-input" />
-                  <span class="custom-radio-checkmark"></span>
-                  <span class="custom-radio-text">Standard - R 550.00 (Unlimited 20/20Mbps)</span>
-                </label>
-                <label class="custom-radio-container">
-                  <input v-model="formData.package" type="radio" value="Premium" class="custom-radio-input" />
-                  <span class="custom-radio-checkmark"></span>
-                  <span class="custom-radio-text">Premium - R 650.00 (Unlimited 30/30Mbps)</span>
-                </label>
+                <template v-if="availablePackages.length > 0">
+                  <label 
+                    v-for="pkg in availablePackages" 
+                    :key="pkg.id" 
+                    class="custom-radio-container"
+                  >
+                    <input 
+                      v-model="formData.package" 
+                      type="radio" 
+                      :value="pkg.package" 
+                      class="custom-radio-input" 
+                    />
+                    <span class="custom-radio-checkmark"></span>
+                    <span class="custom-radio-text">
+                      {{ pkg.package }} - R{{ formatPrice(pkg.price) }}
+                      <span v-if="getPackageDescription(pkg.package)" class="text-gray-600 text-sm">
+                        ({{ getPackageDescription(pkg.package) }})
+                      </span>
+                    </span>
+                  </label>
+                </template>
+                <div v-else-if="formData.serviceType && isLoadingPackages" class="text-gray-500">
+                  Loading packages...
+                </div>
+                <div v-else-if="formData.serviceType" class="text-gray-500">
+                  No packages available for selected service type.
+                </div>
+                <div v-else class="text-gray-500">
+                  Please select a service type first.
+                </div>
               </div>
             </div>
 
@@ -172,6 +182,7 @@
                 <input 
                   v-model="formData.installationDate"
                   type="date" 
+                  :min="minDate"
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -306,7 +317,7 @@
 </template>
 
 <script>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 
 export default {
   setup() {
@@ -335,10 +346,62 @@ export default {
     const statusMessage = ref('')
     const statusType = ref('')
     const showStatus = ref(false)
+    const availablePackages = ref([])
+    const isLoadingPackages = ref(false)
 
     // Computed properties
     const showOtherLocation = computed(() => formData.location === 'Other')
-    const showOtherKnow = computed(() => formData.howDidYouKnow === 'other')
+    const showOtherKnow = computed(() => formData.howDidYouKnow === 'Other')
+    const minDate = computed(() => {
+      const today = new Date()
+      return today.toISOString().split('T')[0]
+    })
+
+    // Watch for service type changes to load packages
+    watch(() => formData.serviceType, async (newServiceType) => {
+      if (newServiceType) {
+        await loadPackages(newServiceType)
+        // Reset package selection when service type changes
+        formData.package = ''
+      } else {
+        availablePackages.value = []
+        formData.package = ''
+      }
+    })
+
+    // Load packages for selected service type
+    const loadPackages = async (serviceType) => {
+      isLoadingPackages.value = true
+      try {
+        const response = await fetch(`/api/packages/${encodeURIComponent(serviceType)}`)
+        if (response.ok) {
+          const data = await response.json()
+          availablePackages.value = data.packages || []
+        } else {
+          availablePackages.value = []
+          console.error('Failed to load packages:', response.statusText)
+        }
+      } catch (error) {
+        console.error('Error loading packages:', error)
+        availablePackages.value = []
+      } finally {
+        isLoadingPackages.value = false
+      }
+    }
+
+    // Helper functions
+    const formatPrice = (price) => {
+      return parseFloat(price).toFixed(2)
+    }
+
+    const getPackageDescription = (packageName) => {
+      const descriptions = {
+        'Basic': 'Unlimited 10/10Mbps',
+        'Standard': 'Unlimited 20/20Mbps',
+        'Premium': 'Unlimited 30/30Mbps'
+      }
+      return descriptions[packageName] || ''
+    }
 
     // Validation
     const validateForm = () => {
@@ -358,6 +421,11 @@ export default {
         return false
       }
       
+      // Check if howDidYouKnow is "Other" and otherKnow is filled
+      if (formData.howDidYouKnow === 'Other' && (!formData.otherKnow || formData.otherKnow.trim() === '')) {
+        return false
+      }
+      
       return true
     }
 
@@ -366,6 +434,13 @@ export default {
       statusMessage.value = message
       statusType.value = type
       showStatus.value = true
+      
+      // Auto hide success messages after 5 seconds
+      if (type === 'success') {
+        setTimeout(() => {
+          showStatus.value = false
+        }, 5000)
+      }
     }
 
     // Reset form
@@ -373,6 +448,7 @@ export default {
       Object.keys(formData).forEach(key => {
         formData[key] = ''
       })
+      availablePackages.value = []
     }
 
     // Submit form
@@ -400,6 +476,7 @@ export default {
         })
         
         if (response.ok) {
+          const result = await response.json()
           displayStatus('Order placed successfully! We\'ll contact you soon.', 'success')
           resetForm()
         } else {
@@ -414,6 +491,16 @@ export default {
       }
     }
 
+    // Initialize component
+    onMounted(() => {
+      // Hide status messages when clicking elsewhere
+      document.addEventListener('click', (e) => {
+        if (showStatus.value && !e.target.closest('.status-message')) {
+          showStatus.value = false
+        }
+      })
+    })
+
     return {
       formData,
       isSubmitting,
@@ -422,6 +509,11 @@ export default {
       showStatus,
       showOtherLocation,
       showOtherKnow,
+      availablePackages,
+      isLoadingPackages,
+      minDate,
+      formatPrice,
+      getPackageDescription,
       submitForm
     }
   }
@@ -503,6 +595,12 @@ export default {
 /* Hover animation */
 .custom-radio-container:hover .custom-radio-checkmark {
   transform: scale(1.1);
+}
+
+/* Loading state */
+.custom-radio-container.loading {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 /* Fallback for browsers that don't support :has() */

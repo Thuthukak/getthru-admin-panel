@@ -31,8 +31,9 @@ class Registration extends Model
         'email',
         'location',
         'address',
-        'service_type',
-        'package',
+        'service_type', // Keep for backward compatibility
+        'package', // Keep for backward compatibility
+        'package_price_id', // New foreign key
         'installation_date',
         'payment_period',
         'deposit_payment',
@@ -59,8 +60,15 @@ class Registration extends Model
         'images_required' => 'boolean'
     ];
 
+    // ==================== RELATIONSHIPS ====================
 
-    // ==================== Installations ====================
+    /**
+     * Get the package price for this registration
+     */
+    public function packagePrice()
+    {
+        return $this->belongsTo(PackagePrice::class);
+    }
 
     /**
      * Get the images for the installation
@@ -68,6 +76,14 @@ class Registration extends Model
     public function images()
     {
         return $this->hasMany(InstallationImage::class);
+    }
+
+    /**
+     * Get the invoices for this registration
+     */
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
     }
 
     /**
@@ -85,14 +101,6 @@ class Registration extends Model
     {
         return $this->images()->count();
     }
-
-
-        public function invoices()
-    {
-        return $this->hasMany(Invoice::class);
-    }
-
-
 
     /**
      * The attributes that should be hidden for serialization.
@@ -153,6 +161,37 @@ class Registration extends Model
         return max(0, now()->diffInDays($this->installation_date, false));
     }
 
+    /**
+     * Get service type from package price relationship or fallback to column
+     */
+    public function getServiceTypeAttribute()
+    {
+        if (isset($this->attributes['service_type'])) {
+            return $this->packagePrice ? $this->packagePrice->service_type : $this->attributes['service_type'];
+        }
+        return $this->packagePrice ? $this->packagePrice->service_type : null;
+    }
+
+    /**
+     * Get package from package price relationship or fallback to column
+     */
+    public function getPackageAttribute()
+    {
+        if (isset($this->attributes['package'])) {
+            return $this->packagePrice ? $this->packagePrice->package : $this->attributes['package'];
+        }
+        return $this->packagePrice ? $this->packagePrice->package : null;
+    }
+
+
+    /**
+     * Get package price
+     */
+    public function getPackagePriceValueAttribute()
+    {
+        return $this->packagePrice ? $this->packagePrice->price : 0;
+    }
+
     // ==================== MUTATORS ====================
 
     /**
@@ -205,7 +244,6 @@ class Registration extends Model
                   ->havingRaw('COUNT(*) < 3');
             });
     }
-
 
     /**
      * Scope to filter by status
@@ -268,7 +306,9 @@ class Registration extends Model
      */
     public function scopeByServiceType($query, string $serviceType)
     {
-        return $query->where('service_type', $serviceType);
+        return $query->whereHas('packagePrice', function($q) use ($serviceType) {
+            $q->where('service_type', $serviceType);
+        })->orWhere('service_type', $serviceType); // Fallback for old records
     }
 
     /**
@@ -276,7 +316,9 @@ class Registration extends Model
      */
     public function scopeByPackage($query, string $package)
     {
-        return $query->where('package', $package);
+        return $query->whereHas('packagePrice', function($q) use ($package) {
+            $q->where('package', $package);
+        })->orWhere('package', $package); // Fallback for old records
     }
 
     // ==================== METHODS ====================
@@ -321,6 +363,7 @@ class Registration extends Model
         return [
             'service_type' => $this->service_type,
             'package' => $this->package,
+            'price' => $this->package_price_value,
             'installation_date' => $this->formatted_installation_date,
             'payment_period' => $this->payment_period,
             'deposit_payment' => $this->deposit_payment,
@@ -351,10 +394,13 @@ class Registration extends Model
      */
     public static function getPopularServiceTypes(): array
     {
-        return static::selectRaw('service_type, COUNT(*) as count')
+        return static::with('packagePrice')
+                    ->get()
                     ->groupBy('service_type')
-                    ->orderBy('count', 'desc')
-                    ->pluck('count', 'service_type')
+                    ->map(function ($group) {
+                        return $group->count();
+                    })
+                    ->sortDesc()
                     ->toArray();
     }
 
@@ -363,10 +409,13 @@ class Registration extends Model
      */
     public static function getPopularPackages(): array
     {
-        return static::selectRaw('package, COUNT(*) as count')
+        return static::with('packagePrice')
+                    ->get()
                     ->groupBy('package')
-                    ->orderBy('count', 'desc')
-                    ->pluck('count', 'package')
+                    ->map(function ($group) {
+                        return $group->count();
+                    })
+                    ->sortDesc()
                     ->toArray();
     }
 }
