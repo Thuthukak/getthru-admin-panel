@@ -41,16 +41,15 @@ Instead of manually handling forms and invoices, customers can easily submit the
 
 ## 🚀 Demo
 
-**Live Demo:** [https://your-demo-url.com](https://your-demo-url.com)
+**Live Demo:** [https://getthru.pendagraphics.co.za](https://getthru.pendagraphics.co.za)
 
 **Demo Credentials:**
-- Admin: `admin@example.com` / `password`
-- User: `user@example.com` / `password`
+- Admin: `superadmin@example.com` / `superad1`
 
 ## 🛠️ Tech Stack
 
 - **Backend:** Laravel 11.x, PHP 8.2+
-- **Frontend:** Blade Templates, Alpine.js, Tailwind CSS
+- **Frontend:** Blade Templates, Vue.js, Alpine.js, Tailwind CSS
 - **Database:** MySQL 8.0
 - **Cache:** Databse
 - **Queue:** Database
