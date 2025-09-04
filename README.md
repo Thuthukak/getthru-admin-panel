@@ -18,7 +18,8 @@ Instead of manually handling forms and invoices, customers can easily submit the
 ![Dashboard Screenshot](/public/assets/images/screenshots/dashboard.png)
 
 ### Installation Management
-![Installation Management Screenshot](/public/assets/images/screenshots/installations.png)(/public/assets/images/screenshots/upload.png)
+![Installation Management Screenshot](/public/assets/images/screenshots/installations.png)
+![](/public/assets/images/screenshots/upload.png)
 
 
 
