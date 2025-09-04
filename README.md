@@ -1,25 +1,32 @@
-# Project Name
+# getthru-admin-panel
 
-![Project Logo](assets/logo.png)
+
+![Project Logo](/public/assets/images/logo/getthru_adminlogo.png)
 
 [![Laravel Version](https://img.shields.io/badge/Laravel-10.x-FF2D20?style=flat-square&logo=laravel)](https://laravel.com/)
 [![PHP Version](https://img.shields.io/badge/PHP-8.1%2B-777BB4?style=flat-square&logo=php)](https://php.net/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/username/repo-name/ci.yml?style=flat-square)](https://github.com/username/repo-name/actions)
 
-A brief, compelling description of what your Laravel application does. Explain the main purpose and key features in 1-2 sentences.
+The GetThru Admin Panel is a streamlined web-based system designed to eliminate paperwork, simplify fibre installation requests, and provide efficient process tracking with automated reporting.
+
+Instead of manually handling forms and invoices, customers can easily submit their requests online, while admins gain visibility into every stage of the workflow — from order submission to installation and billing.
 
 ## 📸 Screenshots
 
 ### Dashboard
-![Dashboard Screenshot](assets/screenshots/dashboard.png)
+![Dashboard Screenshot](/public/assets/images/screenshots/dashboard.png)
 
-### User Management
-![User Management Screenshot](assets/screenshots/user-management.png)
+### Installation Management
+![Installation Management Screenshot](/public/assets/images/screenshots/installations.png)
 
-### Mobile View
-![Mobile Screenshot](assets/screenshots/mobile-view.png)
+(/public/assets/images/screenshots/upload.png)
 
+### Invoice Management
+![Invoice Management Screenshot](/public/assets/images/screenshots/invoicing.png)
+
+### Package Management
+![Package Management Screenshot](/public/assets/images/screenshots/packages.png)
 ## ✨ Features
 
 - **User Authentication & Authorization** - Complete user management system with roles and permissions
