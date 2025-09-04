@@ -1,12 +1,12 @@
 # getthru-admin-panel
 
 
-![Project Logo](/public/assets/images/logo/getthru_adminlogo.png)
+![Project Logo](/public/assets/images/logo/get_thru_digital_logo1080-min.png)
 
 [![Laravel Version](https://img.shields.io/badge/Laravel-10.x-FF2D20?style=flat-square&logo=laravel)](https://laravel.com/)
 [![PHP Version](https://img.shields.io/badge/PHP-8.1%2B-777BB4?style=flat-square&logo=php)](https://php.net/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/username/repo-name/ci.yml?style=flat-square)](https://github.com/username/repo-name/actions)
+
 
 The GetThru Admin Panel is a streamlined web-based system designed to eliminate paperwork, simplify fibre installation requests, and provide efficient process tracking with automated reporting.
 
