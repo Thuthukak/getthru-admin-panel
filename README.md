@@ -49,17 +49,17 @@ Instead of manually handling forms and invoices, customers can easily submit the
 
 ## 🛠️ Tech Stack
 
-- **Backend:** Laravel 10.x, PHP 8.1+
+- **Backend:** Laravel 11.x, PHP 8.2+
 - **Frontend:** Blade Templates, Alpine.js, Tailwind CSS
-- **Database:** MySQL 8.0 / PostgreSQL
-- **Cache:** Redis
-- **Queue:** Redis/Database
-- **Storage:** Local/AWS S3
-- **Testing:** PHPUnit, Laravel Dusk
+- **Database:** MySQL 8.0
+- **Cache:** Databse
+- **Queue:** Database
+- **Storage:** Local
+- **Testing:** PHPUnit
 
 ## 📋 Requirements
 
-- PHP 8.1 or higher
+- PHP 8.2 or higher
 - Composer 2.x
 - Node.js 16+ and npm
 - MySQL 8.0+ or PostgreSQL 13+
@@ -70,8 +70,8 @@ Instead of manually handling forms and invoices, customers can easily submit the
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/username/repo-name.git
-cd repo-name
+git clone https://github.com/Thuthukak/getthru-admin-panel.git
+cd getthru-admin-panel
 ```
 
 ### 2. Install Dependencies
@@ -182,8 +182,8 @@ If you prefer using Docker:
 
 ```bash
 # Clone the repository
-git clone https://github.com/username/repo-name.git
-cd repo-name
+git clone https://github.com/Thuthukak/getthru-admin-panel.git
+cd getthru-admin-panel
 
 # Start with Docker Compose
 docker-compose up -d
@@ -221,23 +221,18 @@ API documentation is available at `/api/documentation` when running the applicat
 
 ```bash
 # Get authentication token
-curl -X POST http://localhost:8000/api/auth/login \
+curl -X POST http://localhost:8000/api/admin/auth \
   -H "Content-Type: application/json" \
-  -d '{"email": "user@example.com", "password": "password"}'
+  -d '{"email": "superuser@example.com", "password": "superad1"}'
 ```
 
 ### Example API Calls
 
 ```bash
 # Get user profile
-curl -X GET http://localhost:8000/api/user \
+curl -X GET http://localhost:8000/api/profile/data \
   -H "Authorization: Bearer your-token-here"
 
-# Create a new post
-curl -X POST http://localhost:8000/api/posts \
-  -H "Authorization: Bearer your-token-here" \
-  -H "Content-Type: application/json" \
-  -d '{"title": "New Post", "content": "Post content here"}'
 ```
 
 ## 🚀 Deployment
@@ -245,7 +240,7 @@ curl -X POST http://localhost:8000/api/posts \
 ### Production Setup
 
 1. **Server Requirements:**
-   - PHP 8.1+ with required extensions
+   - PHP 8.2+ with required extensions
    - Composer
    - Web server (Nginx/Apache)
    - MySQL/PostgreSQL
@@ -255,8 +250,8 @@ curl -X POST http://localhost:8000/api/posts \
 
 ```bash
 # Clone repository
-git clone https://github.com/username/repo-name.git
-cd repo-name
+git clone https://github.com/Thuthukak/getthru-admin-panel.git
+cd getthru-admin-panel
 
 # Install dependencies
 composer install --optimize-autoloader --no-dev
@@ -287,7 +282,7 @@ Deploy easily with [Laravel Forge](https://forge.laravel.com/) for automated dep
 
 ```bash
 # Build production image
-docker build -t your-app-name .
+docker build -t getthru-admin-panel .
 
 # Deploy with docker-compose
 docker-compose -f docker-compose.prod.yml up -d
@@ -335,8 +330,8 @@ Please read our [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct]
 
 ## 🐛 Bug Reports & Feature Requests
 
-- **Bug Reports:** [Create an issue](https://github.com/username/repo-name/issues/new?template=bug_report.md)
-- **Feature Requests:** [Create an issue](https://github.com/username/repo-name/issues/new?template=feature_request.md)
+- **Bug Reports:** [Create an issue](https://github.com/Thuthukak/getthru-admin-panel/issues/new?template=bug_report.md)
+- **Feature Requests:** [Create an issue](https://github.com/Thuthukak/getthru-admin-panel/issues/new?template=feature_request.md)
 
 ## 📜 Changelog
 
@@ -344,7 +339,7 @@ See [CHANGELOG.md](CHANGELOG.md) for a detailed list of changes and versions.
 
 ## 🔒 Security
 
-If you discover any security-related issues, please email security@yourapp.com instead of using the issue tracker.
+If you discover any security-related issues, please email info@pendagraphics.co.za instead of using the issue tracker.
 
 ## 📄 License
 
@@ -352,10 +347,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👥 Authors & Contributors
 
-- **Your Name** - *Initial work* - [@username](https://github.com/username)
+- **Your Name** - *Initial work* - [@username](https://github.com/Thuthukak)
 - **Contributor Name** - *Feature XYZ* - [@contributor](https://github.com/contributor)
 
-See also the list of [contributors](https://github.com/username/repo-name/contributors) who participated in this project.
+See also the list of [contributors](https://github.com/Thuthukak/getthru-admin-panel/contributors) who participated in this project.
 
 ## 🙏 Acknowledgments
 
@@ -368,9 +363,9 @@ See also the list of [contributors](https://github.com/username/repo-name/contri
 
 - **Documentation:** [Wiki](https://github.com/username/repo-name/wiki)
 - **Community:** [Discord](https://discord.gg/your-server)
-- **Email:** support@yourapp.com
-- **Issues:** [GitHub Issues](https://github.com/username/repo-name/issues)
+- **Email:** info@pendagraphics.co.za
+- **Issues:** [GitHub Issues](https://github.com/Thuthukak/getthru-admin-panel/issues)
 
 ---
 
-<p align="center">Made with ❤️ by <a href="https://github.com/username">Your Name</a></p>
+<p align="center">Made with ❤️ by <a href="https://github.com/Thuthukak">Thuthuka Khoza</a></p>
