@@ -388,13 +388,13 @@ library.add(
   faBullhorn,
   faBoxOpen
 );
-const appName = "Penda Graphics";
+const appName = "Get Thru";
 createServer(
   (page) => K({
     page,
     render: renderToString,
     title: (title) => `${title} - ${appName}`,
-    resolve: (name) => resolvePageComponent(`./Pages/${name}.vue`, /* @__PURE__ */ Object.assign({ "./Pages/AboutUS.vue": () => import("./assets/AboutUS-CLv8H0rC.js"), "./Pages/Admin.vue": () => import("./assets/Admin-B5yhdTCF.js"), "./Pages/ContactUs.vue": () => import("./assets/ContactUs-1f0TB3ds.js"), "./Pages/Faq.vue": () => import("./assets/Faq-BNnWJzOc.js"), "./Pages/Home.vue": () => import("./assets/Home-DYeKwiXk.js"), "./Pages/Services/DigitalMarketing.vue": () => import("./assets/DigitalMarketing-BswYQB65.js"), "./Pages/Services/ECommerce.vue": () => import("./assets/ECommerce-CWfQQr8w.js"), "./Pages/Services/GraphicDesign.vue": () => import("./assets/GraphicDesign-s4HUuzXb.js"), "./Pages/Services/IdentityDesign.vue": () => import("./assets/IdentityDesign-B_R2vJL_.js"), "./Pages/Services/ProductDesign.vue": () => import("./assets/ProductDesign-LME5eZiS.js"), "./Pages/Services/WebDesign.vue": () => import("./assets/WebDesign-B4lEWkUu.js") })),
+    resolve: (name) => resolvePageComponent(`./Pages/${name}.vue`, /* @__PURE__ */ Object.assign({ "./Pages/AboutUS.vue": () => import("./assets/AboutUS-Dg8wjral.js"), "./Pages/Admin.vue": () => import("./assets/Admin-CRYcioWO.js"), "./Pages/ContactUs.vue": () => import("./assets/ContactUs-BI4gxjFg.js"), "./Pages/Faq.vue": () => import("./assets/Faq-ycKjW54R.js"), "./Pages/Home.vue": () => import("./assets/Home-DTGq8frK.js"), "./Pages/RegistrationForm.vue": () => import("./assets/RegistrationForm-CsE5kTAr.js"), "./Pages/Services/DigitalMarketing.vue": () => import("./assets/DigitalMarketing-oGfUiA92.js"), "./Pages/Services/ECommerce.vue": () => import("./assets/ECommerce-CgwH6XDw.js"), "./Pages/Services/GraphicDesign.vue": () => import("./assets/GraphicDesign-BP83bU5a.js"), "./Pages/Services/IdentityDesign.vue": () => import("./assets/IdentityDesign-DOFBUEiV.js"), "./Pages/Services/ProductDesign.vue": () => import("./assets/ProductDesign-BVHKqFy2.js"), "./Pages/Services/WebDesign.vue": () => import("./assets/WebDesign-BJTZj-DG.js") })),
     setup({ App, props, plugin }) {
       return createSSRApp({ render: () => h(App, props) }).use(plugin).use(o, {
         ...page.props.ziggy,

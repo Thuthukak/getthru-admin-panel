@@ -47,6 +47,7 @@
           <tr>
             <th>Service Type</th>
             <th>Package</th>
+            <th>Description</th>
             <th>Price</th>
             <th>Actions</th>
           </tr>
@@ -55,6 +56,11 @@
           <tr v-for="pkg in filteredPackages" :key="pkg.id">
             <td>{{ pkg.service_type }}</td>
             <td>{{ pkg.package }}</td>
+            <td>
+              <div class="description-cell">
+                {{ pkg.description || 'No description' }}
+              </div>
+            </td>
             <td>R{{ formatPrice(pkg.price) }}</td>
             <td class="actions">
               <button @click="editPackage(pkg)" class="btn btn-sm btn-secondary">
@@ -113,6 +119,23 @@
           </div>
 
           <div class="form-group">
+            <label for="description">Description:</label>
+            <textarea 
+              id="description"
+              v-model="form.description" 
+              class="form-control textarea"
+              :class="{ 'error': errors.description }"
+              placeholder="Optional description of the package..."
+              rows="3"
+              maxlength="1000"
+            ></textarea>
+            <small class="char-count">{{ (form.description || '').length }}/1000 characters</small>
+            <span v-if="errors.description" class="error-text">
+              {{ errors.description[0] }}
+            </span>
+          </div>
+
+          <div class="form-group">
             <label for="price">Price:</label>
             <input 
               id="price"
@@ -162,6 +185,7 @@ export default {
       form: {
         service_type: '',
         package: '',
+        description: '',
         price: ''
       },
       errors: {}
@@ -183,7 +207,8 @@ export default {
         const term = this.searchTerm.toLowerCase();
         filtered = filtered.filter(pkg => 
           pkg.package.toLowerCase().includes(term) ||
-          pkg.service_type.toLowerCase().includes(term)
+          pkg.service_type.toLowerCase().includes(term) ||
+          (pkg.description && pkg.description.toLowerCase().includes(term))
         );
       }
       
@@ -233,6 +258,7 @@ export default {
       this.form = {
         service_type: '',
         package: '',
+        description: '',
         price: ''
       };
       this.errors = {};
@@ -245,6 +271,7 @@ export default {
         id: pkg.id,
         service_type: pkg.service_type,
         package: pkg.package,
+        description: pkg.description || '',
         price: pkg.price
       };
       this.errors = {};
@@ -255,12 +282,15 @@ export default {
         this.saving = true;
         this.errors = {};
         
+        const payload = {
+          service_type: this.form.service_type,
+          package: this.form.package,
+          description: this.form.description || null,
+          price: this.form.price
+        };
+        
         if (this.isEditing) {
-          const response = await axios.put(`/api/packages/${this.form.id}`, {
-            service_type: this.form.service_type,
-            package: this.form.package,
-            price: this.form.price
-          });
+          const response = await axios.put(`/api/packages/${this.form.id}`, payload);
           
           // Update the package in the list
           const index = this.packages.findIndex(p => p.id === this.form.id);
@@ -268,11 +298,7 @@ export default {
             this.packages.splice(index, 1, response.data);
           }
         } else {
-          const response = await axios.post('/api/packages', {
-            service_type: this.form.service_type,
-            package: this.form.package,
-            price: this.form.price
-          });
+          const response = await axios.post('/api/packages', payload);
           
           // Add the new package to the list
           this.packages.push(response.data);
@@ -335,7 +361,7 @@ export default {
 <style scoped>
 .packages-management {
   padding: 20px;
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
@@ -377,6 +403,19 @@ export default {
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 14px;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.char-count {
+  font-size: 12px;
+  color: #666;
+  text-align: right;
+  display: block;
+  margin-top: 2px;
 }
 
 .form-control:focus {
@@ -458,13 +497,14 @@ export default {
 .table-container {
   background: white;
   border-radius: 5px;
-  overflow: hidden;
+  overflow-x: auto;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .packages-table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 800px;
 }
 
 .packages-table th,
@@ -482,6 +522,19 @@ export default {
 
 .packages-table tbody tr:hover {
   background-color: #f5f5f5;
+}
+
+.description-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.description-cell:hover {
+  white-space: normal;
+  overflow: visible;
+  word-wrap: break-word;
 }
 
 .actions {
@@ -513,7 +566,7 @@ export default {
   background: white;
   border-radius: 5px;
   width: 90%;
-  max-width: 500px;
+  max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -591,6 +644,15 @@ export default {
   
   .actions {
     flex-direction: column;
+  }
+  
+  .description-cell {
+    max-width: 150px;
+  }
+  
+  .modal {
+    width: 95%;
+    margin: 20px;
   }
 }
 </style>

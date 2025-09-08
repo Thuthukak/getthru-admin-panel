@@ -1,7 +1,8 @@
 import { ssrRenderComponent, ssrRenderAttr, ssrRenderStyle } from "vue/server-renderer";
-import { _ as _export_sfc, N as Navbar } from "./Navbar-B2dw1uDe.js";
-import { F as Footer } from "./Footer-Cv32ksWL.js";
+import { N as Navbar } from "./Navbar-DKjwHpMh.js";
+import { F as Footer } from "./Footer-BNllGzeY.js";
 import { useSSRContext } from "vue";
+import { _ as _export_sfc } from "./_plugin-vue_export-helper-1tPrXgE0.js";
 import "axios";
 const _sfc_main = {
   __name: "DigitalMarketing",

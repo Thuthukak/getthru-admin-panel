@@ -12,7 +12,9 @@ class PackagePrice extends Model
     protected $fillable = [
         'service_type',
         'package',
-        'price'
+        'description',
+        'price',
+
     ];
 
     protected $casts = [

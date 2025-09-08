@@ -71,7 +71,7 @@
           </td>
           <td>{{ invoice.invoice_number }}</td>
           <td>{{ invoice.customer_name }}</td>
-          <td>{{ formatServiceType(invoice.service_type) }} - {{ invoice.package }}</td>
+          <td>{{ formatServiceInfo(invoice) }}</td>
           <td>R{{ formatAmount(invoice.amount) }}</td>
           <td>{{ formatDate(invoice.billing_date) }}</td>
           <td>{{ formatDate(invoice.due_date) }}</td>
@@ -101,7 +101,6 @@
               class="btn btn-sm btn-outline"
               title="Edit"
             >
-            <!-- <font-awesome-icon :icon="['fas', 'edit']" /> -->
              ✎
             </button>
             <button 
@@ -110,7 +109,6 @@
               v-if="invoice.status !== 'paid'"
               title="Mark as Paid"
             >
-            <!-- <font-awesome-icon :icon="['fas', 'check']" /> -->
              ✓
             </button>
             <button 
@@ -197,6 +195,40 @@ export default {
         businessInternet: 'Business Internet',
       }
       return typeMap[serviceType] || serviceType
+    },
+    formatServiceInfo(invoice) {
+      // Check if packagePrice relationship exists
+      if (invoice.package_price && invoice.package_price.service_type) {
+        const serviceType = this.formatServiceType(invoice.package_price.service_type)
+        const packageName = invoice.package_price.package || ''
+        const description = invoice.package_price.description || ''
+        
+        // Build the service info string
+        let serviceInfo = serviceType
+        if (packageName) {
+          serviceInfo += ` - ${packageName}`
+        }
+        if (description && description !== packageName) {
+          serviceInfo += ` (${description})`
+        }
+        
+        return serviceInfo
+      }
+      
+      // Fallback to direct fields if relationship not loaded
+      if (invoice.service_type) {
+        const serviceType = this.formatServiceType(invoice.service_type)
+        const packageName = invoice.package || ''
+        
+        let serviceInfo = serviceType
+        if (packageName) {
+          serviceInfo += ` - ${packageName}`
+        }
+        
+        return serviceInfo
+      }
+      
+      return 'Service information not available'
     }
   }
 }

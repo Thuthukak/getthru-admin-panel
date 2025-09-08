@@ -1,13 +1,7 @@
 import axios from "axios";
 import { ssrRenderAttrs, ssrRenderTeleport, ssrRenderList, ssrRenderClass, ssrInterpolate, ssrRenderAttr, ssrIncludeBooleanAttr, ssrRenderComponent } from "vue/server-renderer";
 import { useSSRContext, resolveComponent } from "vue";
-const _export_sfc = (sfc, props) => {
-  const target = sfc.__vccOpts || sfc;
-  for (const [key, val] of props) {
-    target[key] = val;
-  }
-  return target;
-};
+import { _ as _export_sfc } from "./_plugin-vue_export-helper-1tPrXgE0.js";
 const _sfc_main$1 = {
   name: "EstimateModal",
   props: {
@@ -304,6 +298,5 @@ _sfc_main.setup = (props, ctx) => {
 const Navbar = /* @__PURE__ */ _export_sfc(_sfc_main, [["ssrRender", _sfc_ssrRender], ["__scopeId", "data-v-e566941a"]]);
 export {
   EstimateModal as E,
-  Navbar as N,
-  _export_sfc as _
+  Navbar as N
 };

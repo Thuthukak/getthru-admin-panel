@@ -1,6 +1,6 @@
 import { ref, resolveComponent, useSSRContext } from "vue";
 import { ssrRenderAttr, ssrRenderStyle, ssrRenderComponent, ssrInterpolate } from "vue/server-renderer";
-import { _ as _export_sfc } from "./Navbar-B2dw1uDe.js";
+import { _ as _export_sfc } from "./_plugin-vue_export-helper-1tPrXgE0.js";
 const _sfc_main = {
   __name: "Footer",
   __ssrInlineRender: true,

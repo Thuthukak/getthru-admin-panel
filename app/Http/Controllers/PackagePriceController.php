@@ -1,7 +1,5 @@
 <?php
-
 namespace App\Http\Controllers;
-
 use Illuminate\Http\Request;
 use App\Models\PackagePrice;
 use Illuminate\Http\JsonResponse;
@@ -17,7 +15,7 @@ class PackagePriceController extends Controller
         $packages = PackagePrice::orderBy('service_type')
             ->orderBy('package')
             ->get();
-        
+       
         return response()->json($packages);
     }
 
@@ -36,11 +34,12 @@ class PackagePriceController extends Controller
                     return $query->where('service_type', $request->service_type);
                 })
             ],
+            'description' => 'nullable|string|max:1000',
             'price' => 'required|numeric|min:0|max:99999999.99'
         ]);
 
         $package = PackagePrice::create($validated);
-        
+       
         return response()->json($package, 201);
     }
 
@@ -67,11 +66,12 @@ class PackagePriceController extends Controller
                     return $query->where('service_type', $request->service_type);
                 })->ignore($packagePrice->id)
             ],
+            'description' => 'nullable|string|max:1000',
             'price' => 'required|numeric|min:0|max:99999999.99'
         ]);
 
         $packagePrice->update($validated);
-        
+       
         return response()->json($packagePrice);
     }
 
@@ -81,7 +81,7 @@ class PackagePriceController extends Controller
     public function destroy(PackagePrice $packagePrice): JsonResponse
     {
         $packagePrice->delete();
-        
+       
         return response()->json(['message' => 'Package deleted successfully']);
     }
 
@@ -94,7 +94,7 @@ class PackagePriceController extends Controller
             ->pluck('service_type')
             ->sort()
             ->values();
-            
+           
         return response()->json($serviceTypes);
     }
 }
