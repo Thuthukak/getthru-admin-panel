@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use App\Models\Registration;
 use App\Models\PackagePrice;
+use App\Models\Invoice;
+use App\Models\Customer;
 use Carbon\Carbon;
 
 class RegistrationController extends Controller

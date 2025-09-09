@@ -130,6 +130,9 @@ Route::prefix('api')->group(function () {
     Route::get('/packages/{packagePrice}', [PackagePriceController::class, 'show']);
     Route::put('/packages/{packagePrice}', [PackagePriceController::class, 'update']);
     Route::delete('/packages/{packagePrice}', [PackagePriceController::class, 'destroy']);
+    // Customers
+    Route::get('/customers', [PackagePriceController::class, 'show']);
+
 
    
     
