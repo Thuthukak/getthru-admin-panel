@@ -7,6 +7,7 @@ import Settings from './components/Admin/Dashboard/Settings/Settings.vue';
 import Services from './components/Admin/Dashboard/Services/Services.vue';
 import Invoice from './components/Admin/Dashboard/Invoices/Invoice.vue';
 import Packages from './components/Admin/Dashboard/Packages/Packages.vue';
+import Customers from './components/Admin/Dashboard/Customers/Customers.vue';
 
 
 const routes = [
@@ -18,6 +19,7 @@ const routes = [
     { path: '/admin/services', component: Services },
     { path: '/admin/invoices', component: Invoice },
     { path: '/admin/packages', component: Packages },
+    { path: '/admin/customers', component: Customers },
     
 
 ];

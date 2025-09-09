@@ -110,13 +110,12 @@ export default {
            label: 'Packages',
            icon: ['fas', 'paint-brush'],
         },
-        // {
-        //   path: '/admin/services',
-        //   label: 'Services',
-        //   // graphic design services
-        //   icon: ['fas', 'paint-brush'],
+        {
+          path: '/admin/customers',
+          label: 'Customers',
+          icon: ['fas', 'user'],
           
-        // },
+        },
         {
           path: '/admin/settings',
           label: 'Settings',

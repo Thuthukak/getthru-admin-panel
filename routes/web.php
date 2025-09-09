@@ -17,6 +17,7 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\InstallationController;
 use App\Http\Controllers\PackagePriceController;
+use App\Http\Controllers\CustomerController;
 use Inertia\Inertia;
 
 
@@ -131,7 +132,14 @@ Route::prefix('api')->group(function () {
     Route::put('/packages/{packagePrice}', [PackagePriceController::class, 'update']);
     Route::delete('/packages/{packagePrice}', [PackagePriceController::class, 'destroy']);
     // Customers
-    Route::get('/customers', [PackagePriceController::class, 'show']);
+    Route::get('/customers', [CustomerController::class, 'index']);
+    Route::post('/customers', [CustomerController::class, 'store']);
+    Route::get('/customers/{customer}', [CustomerController::class, 'show']);
+    Route::put('/customers/{customer}', [CustomerController::class, 'update']);
+    Route::delete('/customers/{customer}', [CustomerController::class, 'destroy']);
+    Route::get('customers/locations', [CustomerController::class, 'locations']);
+    Route::get('customers/stats', [CustomerController::class, 'stats']);
+
 
 
    
