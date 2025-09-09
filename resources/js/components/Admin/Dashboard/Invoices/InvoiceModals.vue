@@ -22,6 +22,30 @@
                 </option>
               </select>
             </div>
+            
+            <div class="form-group">
+              <label>Package</label>
+              <select :value="form.package_price_id" @input="updateForm('package_price_id', $event.target.value)" class="select-field">
+                <option value="">Select Package</option>
+                <optgroup 
+                  v-for="(groupPackages, serviceType) in groupedPackages" 
+                  :key="serviceType" 
+                  :label="formatServiceType(serviceType)"
+                >
+                  <option 
+                    v-for="pkg in groupPackages" 
+                    :key="pkg.id" 
+                    :value="pkg.id"
+                  >
+                    {{ pkg.package }} - R{{ formatAmount(pkg.price) }}/{{ pkg.description || 'No description' }}
+                  </option>
+                </optgroup>
+              </select>
+              <small class="help-text">
+                Leave empty to use the customer's registered package and price
+              </small>
+            </div>
+
             <div class="form-row">
               <div class="form-group">
                 <label>Amount</label>
@@ -33,6 +57,9 @@
                   class="input-field" 
                   required
                 >
+                <small class="help-text" v-if="selectedPackagePrice">
+                  Package price: R{{ formatAmount(selectedPackagePrice.price) }}
+                </small>
               </div>
               <div class="form-group">
                 <label>Billing Date</label>
@@ -132,6 +159,24 @@
             </div>
 
             <div class="detail-section">
+              <h4>Package Information</h4>
+              <div class="detail-grid">
+                <div class="detail-item" v-if="selectedInvoice.package_price">
+                  <label>Package:</label>
+                  <span>{{ selectedInvoice.package_price.package }}</span>
+                </div>
+                <div class="detail-item" v-if="selectedInvoice.package_price">
+                  <label>Service Type:</label>
+                  <span>{{ formatServiceType(selectedInvoice.package_price.service_type) }}</span>
+                </div>
+                <div class="detail-item" v-if="selectedInvoice.package_price">
+                  <label>Package Price:</label>
+                  <span>R{{ formatAmount(selectedInvoice.package_price.price) }}/{{ selectedInvoice.package_price.billing_cycle }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-section">
               <h4>Customer Information</h4>
               <div class="detail-grid">
                 <div class="detail-item">
@@ -146,7 +191,7 @@
                   <label>Phone:</label>
                   <span>{{ selectedInvoice.customer_phone }}</span>
                 </div>
-                <div class="detail-item">
+                <div class="detail-item" v-if="selectedInvoice.service_type">
                   <label>Service:</label>
                   <span>{{ formatServiceType(selectedInvoice.service_type) }} - {{ selectedInvoice.package }}</span>
                 </div>
@@ -208,15 +253,46 @@ export default {
       type: Array,
       default: () => []
     },
+    packages: {
+      type: Array,
+      default: () => []
+    },
     loading: {
       type: Boolean,
       default: false
     }
   },
   emits: ['close', 'submit', 'update:form'],
+  computed: {
+    groupedPackages() {
+      if (!this.packages || !this.packages.length) return {}
+      
+      return this.packages.reduce((groups, pkg) => {
+        const serviceType = pkg.service_type
+        if (!groups[serviceType]) {
+          groups[serviceType] = []
+        }
+        groups[serviceType].push(pkg)
+        return groups
+      }, {})
+    },
+    selectedPackagePrice() {
+      if (!this.form.package_price_id || !this.packages.length) return null
+      return this.packages.find(pkg => pkg.id == this.form.package_price_id)
+    }
+  },
   methods: {
     updateForm(key, value) {
       const updatedForm = { ...this.form, [key]: value }
+      
+      // If package is selected, auto-fill the amount with package price
+      if (key === 'package_price_id' && value) {
+        const selectedPackage = this.packages.find(pkg => pkg.id == value)
+        if (selectedPackage) {
+          updatedForm.amount = selectedPackage.price
+        }
+      }
+      
       this.$emit('update:form', updatedForm)
     },
     formatAmount(amount) {
@@ -343,6 +419,14 @@ export default {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 15px;
+}
+
+.help-text {
+  display: block;
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+  line-height: 1.4;
 }
 
 /* Form Elements */

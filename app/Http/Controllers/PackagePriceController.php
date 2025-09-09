@@ -14,6 +14,7 @@ class PackagePriceController extends Controller
     {
         $packages = PackagePrice::orderBy('service_type')
             ->orderBy('package')
+            ->select('id', 'service_type', 'package', 'description', 'price')
             ->get();
        
         return response()->json($packages);

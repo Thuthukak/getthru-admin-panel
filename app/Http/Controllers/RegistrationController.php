@@ -89,6 +89,17 @@ class RegistrationController extends Controller
             // Load the package price relationship
             $registration->load('packagePrice');
 
+            // create customer record
+            $customer = Customer::create([
+                'name' => $validatedData['name'],
+                'surname' => $validatedData['surname'],
+                'phone' => $validatedData['phone'],
+                'alternative_phone' => $validatedData['alternativePhone'],
+                'email' => $validatedData['email'],
+                'location' => $validatedData['location'] === 'Other' ? $validatedData['otherLocation'] : $validatedData['location'],
+                'address' => $validatedData['address'],
+            ]);
+
             // Log successful submission
             Log::info('Registration form submitted', [
                 'registration_id' => $registration->id,

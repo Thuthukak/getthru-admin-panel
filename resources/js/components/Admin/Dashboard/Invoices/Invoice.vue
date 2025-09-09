@@ -52,9 +52,11 @@
       :form="form"
       :selected-invoice="selectedInvoice"
       :registrations="registrations"
+      :packages="packages"
       :loading="loading"
       @close="closeModals"
       @submit="submitForm"
+      @update:form="updateForm"
     />
 
     <ToastNotifications :toasts="toasts" />
@@ -89,6 +91,7 @@ export default {
     const loading = ref(false)
     const invoices = ref([])
     const registrations = ref([])
+    const packages = ref([])
     const selectedInvoices = ref([])
     const selectedInvoice = ref(null)
     const toasts = ref([])
@@ -136,6 +139,7 @@ export default {
     // Form data
     const form = reactive({
       registration_id: '',
+      package_price_id: '',
       amount: '',
       billing_date: '',
       due_date: '',
@@ -149,9 +153,8 @@ export default {
       return invoices.value.length > 0 && selectedInvoices.value.length === invoices.value.length
     })
     
-    // API methods (keep all existing API methods here)
-    // ... (all existing API methods remain the same)
-        const fetchInvoices = async (page = 1) => {
+    // API methods
+    const fetchInvoices = async (page = 1) => {
       loading.value = true
       try {
         const params = new URLSearchParams({
@@ -204,6 +207,27 @@ export default {
         }
       } catch (error) {
         console.error('Error fetching registrations:', error)
+      }
+    }
+    
+    const fetchPackages = async () => {
+      try {
+        const response = await fetch('/api/packages')
+        const data = await response.json()
+        
+        // Handle both direct array response and wrapped response
+        if (Array.isArray(data)) {
+          packages.value = data
+        } else if (data.success && data.data) {
+          packages.value = data.data
+        } else if (data.data) {
+          packages.value = data.data
+        } else {
+          packages.value = data
+        }
+      } catch (error) {
+        console.error('Error fetching packages:', error)
+        showToast('Failed to load packages', 'error')
       }
     }
     
@@ -491,6 +515,7 @@ export default {
     const editInvoice = (invoice) => {
       selectedInvoice.value = invoice
       form.registration_id = invoice.registration_id
+      form.package_price_id = invoice.package_price_id || ''
       form.amount = invoice.amount
       form.billing_date = invoice.billing_date
       form.due_date = invoice.due_date
@@ -518,12 +543,18 @@ export default {
     
     const resetForm = () => {
       form.registration_id = ''
+      form.package_price_id = ''
       form.amount = ''
       form.billing_date = ''
       form.due_date = ''
       form.status = 'pending'
       form.notes = ''
       form.is_recurring = true
+    }
+    
+    // Form update handler
+    const updateForm = (updatedForm) => {
+      Object.assign(form, updatedForm)
     }
     
     // Filter and search methods
@@ -628,8 +659,19 @@ export default {
     
     // Watchers
     watch(() => showCreateModal.value, (newVal) => {
-      if (newVal && registrations.value.length === 0) {
-        fetchRegistrations()
+      if (newVal) {
+        if (registrations.value.length === 0) {
+          fetchRegistrations()
+        }
+        if (packages.value.length === 0) {
+          fetchPackages()
+        }
+      }
+    })
+    
+    watch(() => showEditModal.value, (newVal) => {
+      if (newVal && packages.value.length === 0) {
+        fetchPackages()
       }
     })
     
@@ -637,6 +679,7 @@ export default {
     onMounted(() => {
       fetchInvoices()
       fetchStats()
+      fetchPackages() // Load packages on component mount
     })
     
     onUnmounted(() => {
@@ -650,6 +693,7 @@ export default {
       loading,
       invoices,
       registrations,
+      packages,
       selectedInvoices,
       selectedInvoice,
       toasts,
@@ -678,6 +722,7 @@ export default {
       fetchInvoices,
       fetchStats,
       fetchRegistrations,
+      fetchPackages,
       createInvoice,
       updateInvoice,
       deleteInvoice,
@@ -692,6 +737,7 @@ export default {
       submitForm,
       closeModals,
       resetForm,
+      updateForm,
       applyFilters,
       debouncedSearch,
       sort,
