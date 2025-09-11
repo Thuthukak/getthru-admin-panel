@@ -20,8 +20,8 @@ class InvoiceItemResource extends JsonResource
             
             // Formatted fields
             'formatted_quantity' => number_format($this->quantity, 2),
-            'formatted_unit_price' => '$' . number_format($this->unit_price, 2),
-            'formatted_total' => '$' . number_format($this->total, 2),
+            'formatted_unit_price' => 'R' . number_format($this->unit_price, 2),
+            'formatted_total' => 'R' . number_format($this->total, 2),
             
             // Service relationship
             'service' => $this->whenLoaded('service', function () {

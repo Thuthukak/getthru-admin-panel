@@ -17,6 +17,8 @@ class Invoice extends Model
         'customer_address',
         'invoice_number',
         'package_price_id', // Use this instead of service_type and package
+        'invoice_type',
+        'description',
         'amount',
         'payment_period',
         'billing_date',
@@ -99,6 +101,22 @@ class Invoice extends Model
         }
 
         return null;
+    }
+
+     /**
+     * Get formatted amount
+     */
+    public function getFormattedAmountAttribute(): string
+    {
+        return 'R' . number_format($this->amount, 2);
+    }
+
+    /**
+     * Get days until due
+     */
+    public function getDaysUntilDueAttribute(): int
+    {
+        return $this->due_date->diffInDays(now(), false);
     }
 
     public function markAsSent()

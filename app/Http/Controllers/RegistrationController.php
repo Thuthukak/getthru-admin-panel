@@ -7,14 +7,23 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use App\Models\Registration;
 use App\Models\PackagePrice;
 use App\Models\Invoice;
 use App\Models\Customer;
+use App\Services\InvoiceService;
 use Carbon\Carbon;
 
 class RegistrationController extends Controller
 {
+    protected $invoiceService;
+
+    public function __construct(InvoiceService $invoiceService)
+    {
+        $this->invoiceService = $invoiceService;
+    }
+
     /**
      * Store a new registration form submission
      *
@@ -23,7 +32,11 @@ class RegistrationController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        Log::info('we are in the store method', ['request_data' => $request->all()]);
+        Log::info('Registration submission started', ['request_data' => $request->all()]);
+        
+        // Use database transaction to ensure data consistency
+        DB::beginTransaction();
+        
         try {
             // Validate the incoming request
             $validator = Validator::make($request->all(), [
@@ -39,7 +52,7 @@ class RegistrationController extends Controller
                 'package' => 'required|string|max:255',
                 'installationDate' => 'required|date|after_or_equal:today',
                 'paymentPeriod' => 'required|string|max:255',
-                'depositPayment' => 'required|string|max:255',
+                'depositPayment' => 'required|string|in:card,eft,bank deposit,pay later',
                 'howDidYouKnow' => 'nullable|string|max:255',
                 'otherKnow' => 'nullable|string|max:255|required_if:howDidYouKnow,other',
                 'comments' => 'nullable|string|max:1000',
@@ -47,6 +60,7 @@ class RegistrationController extends Controller
 
             // Return validation errors if any
             if ($validator->fails()) {
+                DB::rollBack();
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation failed',
@@ -63,6 +77,7 @@ class RegistrationController extends Controller
                 ->first();
 
             if (!$packagePrice) {
+                DB::rollBack();
                 return response()->json([
                     'success' => false,
                     'message' => 'Invalid service type and package combination'
@@ -82,7 +97,7 @@ class RegistrationController extends Controller
 
             // Create registration using Eloquent model with customer_id
             $registration = Registration::create([
-                'customer_id' => $customer->id, // Link to the customer
+                'customer_id' => $customer->id,
                 'name' => $validatedData['name'],
                 'surname' => $validatedData['surname'],
                 'phone' => $validatedData['phone'],
@@ -90,51 +105,94 @@ class RegistrationController extends Controller
                 'email' => $validatedData['email'],
                 'location' => $validatedData['location'] === 'Other' ? $validatedData['otherLocation'] : $validatedData['location'],
                 'address' => $validatedData['address'],
-                'service_type' => $validatedData['serviceType'], // Keep for backward compatibility
-                'package' => $validatedData['package'], // Keep for backward compatibility
-                'package_price_id' => $packagePrice->id, // New foreign key
+                'service_type' => $validatedData['serviceType'],
+                'package' => $validatedData['package'],
+                'package_price_id' => $packagePrice->id,
                 'installation_date' => $validatedData['installationDate'],
                 'payment_period' => $validatedData['paymentPeriod'],
                 'deposit_payment' => $validatedData['depositPayment'],
                 'how_did_you_know' => $validatedData['howDidYouKnow'] === 'other' ? $validatedData['otherKnow'] : $validatedData['howDidYouKnow'],
                 'comments' => $validatedData['comments'],
+                'status' => 'pending' // Start with pending status
             ]);
 
             // Load the relationships
             $registration->load(['packagePrice', 'customer']);
 
+            // Create invoices based on deposit payment method
+            $invoiceResult = $this->invoiceService->createInitialInvoice($registration);
+            
+            // Prepare response data based on invoice creation result
+            $responseData = [
+                'full_name' => $registration->full_name,
+                'email' => $registration->email,
+                'service_type' => $registration->service_type,
+                'package' => $registration->package,
+                'price' => $registration->package_price_value,
+                'installation_date' => $registration->formatted_installation_date,
+                'deposit_payment' => $registration->deposit_payment
+            ];
+
+            // Handle different invoice scenarios
+            if (strtolower($validatedData['depositPayment']) === 'pay later') {
+                // Single invoice with full deposit included
+                $responseData['invoice'] = [
+                    'type' => 'single',
+                    'invoice_id' => $invoiceResult->id,
+                    'total_amount' => $invoiceResult->amount,
+                    'package_price' => $packagePrice->price,
+                    'deposit_included' => 950,
+                    'description' => 'Service package with full deposit (Pay Later option)'
+                ];
+            } else {
+                // Split invoices: deposit + main
+                $responseData['invoices'] = [
+                    'type' => 'split',
+                    'deposit_invoice' => [
+                        'invoice_id' => $invoiceResult['deposit_invoice']->id,
+                        'amount' => $invoiceResult['deposit_invoice']->amount,
+                        'description' => 'Registration Deposit',
+                        'due_date' => $invoiceResult['deposit_invoice']->due_date
+                    ],
+                    'main_invoice' => [
+                        'invoice_id' => $invoiceResult['main_invoice']->id,
+                        'amount' => $invoiceResult['main_invoice']->amount,
+                        'description' => 'Service package with partial deposit',
+                        'package_price' => $packagePrice->price,
+                        'partial_deposit' => 475,
+                        'due_date' => $invoiceResult['main_invoice']->due_date
+                    ]
+                ];
+            }
+
+            // Update registration status to processed since invoices were created successfully
+            $registration->update(['status' => 'processed']);
+
+            // Commit the transaction
+            DB::commit();
+
             // Log successful submission
-            Log::info('Registration form submitted', [
+            Log::info('Registration and invoices created successfully', [
                 'registration_id' => $registration->id,
                 'customer_id' => $customer->id,
                 'email' => $registration->email,
                 'name' => $registration->full_name,
-                'package_price_id' => $registration->package_price_id,
-                'price' => $registration->package_price_value
+                'deposit_payment' => $registration->deposit_payment,
+                'invoice_result' => is_array($invoiceResult) ? 'split_invoices' : 'single_invoice'
             ]);
-
-            // You can add additional logic here such as:
-            // - Send confirmation email to customer
-            // - Send notification email to admin
-            // - Queue background jobs for processing
-            // - Integrate with CRM systems
 
             return response()->json([
                 'success' => true,
-                'message' => 'Registration submitted successfully',
+                'message' => 'Registration submitted and invoices created successfully',
                 'registration_id' => $registration->id,
                 'customer_id' => $customer->id,
-                'data' => [
-                    'full_name' => $registration->full_name,
-                    'email' => $registration->email,
-                    'service_type' => $registration->service_type,
-                    'package' => $registration->package,
-                    'price' => $registration->package_price_value,
-                    'installation_date' => $registration->formatted_installation_date
-                ]
+                'data' => $responseData
             ], 201);
 
         } catch (\Exception $e) {
+            // Rollback the transaction
+            DB::rollBack();
+            
             // Log the error
             Log::error('Registration form submission failed', [
                 'error' => $e->getMessage(),
@@ -144,10 +202,10 @@ class RegistrationController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while processing your request'
+                'message' => 'An error occurred while processing your request: ' . $e->getMessage()
             ], 500);
         }
-}
+    }
 
     /**
      * Get available packages for a service type
@@ -205,6 +263,112 @@ class RegistrationController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve service types'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get registration details with invoices
+     *
+     * @param int $registrationId
+     * @return JsonResponse
+     */
+    public function show(int $registrationId): JsonResponse
+    {
+        try {
+            $registration = Registration::with(['customer', 'packagePrice', 'invoices'])
+                ->findOrFail($registrationId);
+
+            return response()->json([
+                'success' => true,
+                'data' => $registration
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get registration details', [
+                'registration_id' => $registrationId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Registration not found'
+            ], 404);
+        }
+    }
+
+    /**
+     * Get deposit payment options
+     *
+     * @return JsonResponse
+     */
+    public function getDepositPaymentOptions(): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'options' => [
+                ['value' => 'card', 'label' => 'Credit/Debit Card'],
+                ['value' => 'eft', 'label' => 'EFT Payment'],
+                ['value' => 'bank deposit', 'label' => 'Bank Deposit'],
+                ['value' => 'pay later', 'label' => 'Pay Later (Full deposit on first invoice)']
+            ]
+        ]);
+    }
+
+    /**
+     * Get registrations with invoice summary
+     *
+     * @return JsonResponse
+     */
+    public function indexWithInvoices(Request $request): JsonResponse
+    {
+        try {
+            $query = Registration::with(['customer', 'packagePrice', 'invoices']);
+            
+            // Apply filters
+            if ($request->has('status')) {
+                $query->where('status', $request->status);
+            }
+            
+            if ($request->has('deposit_payment')) {
+                $query->where('deposit_payment', $request->deposit_payment);
+            }
+            
+            if ($request->has('service_type')) {
+                $query->where('service_type', $request->service_type);
+            }
+
+            $registrations = $query->paginate($request->get('per_page', 15));
+            
+            // Add invoice summary to each registration
+            $registrations->getCollection()->transform(function ($registration) {
+                $invoiceSummary = [
+                    'total_invoices' => $registration->invoices->count(),
+                    'main_invoices' => $registration->mainInvoices->count(),
+                    'deposit_invoices' => $registration->depositInvoices->count(),
+                    'total_amount_owed' => $registration->total_amount_owed,
+                    'total_amount_paid' => $registration->total_amount_paid,
+                    'has_pending' => $registration->hasPendingInvoices(),
+                    'has_overdue' => $registration->hasOverdueInvoices(),
+                ];
+                
+                $registration->invoice_summary = $invoiceSummary;
+                return $registration;
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $registrations
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get registrations with invoices', [
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve registrations'
             ], 500);
         }
     }

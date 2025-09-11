@@ -30,12 +30,12 @@ class InvoiceResource extends JsonResource
             'balance' => $this->balance,
             
             // Formatted financial data
-            'formatted_subtotal' => '$' . number_format($this->subtotal, 2),
-            'formatted_tax_amount' => '$' . number_format($this->tax_amount, 2),
-            'formatted_discount_amount' => '$' . number_format($this->discount_amount, 2),
-            'formatted_total' => '$' . number_format($this->total, 2),
-            'formatted_paid_amount' => '$' . number_format($this->paid_amount, 2),
-            'formatted_balance' => '$' . number_format($this->balance, 2),
+            'formatted_subtotal' => 'R' . number_format($this->subtotal, 2),
+            'formatted_tax_amount' => 'R' . number_format($this->tax_amount, 2),
+            'formatted_discount_amount' => 'R' . number_format($this->discount_amount, 2),
+            'formatted_total' => 'R' . number_format($this->total, 2),
+            'formatted_paid_amount' => 'R' . number_format($this->paid_amount, 2),
+            'formatted_balance' => 'R' . number_format($this->balance, 2),
             
             // Payment info
             'paid_date' => $this->paid_date?->format('Y-m-d'),
@@ -47,7 +47,7 @@ class InvoiceResource extends JsonResource
             'sent_at' => $this->sent_at?->format('Y-m-d H:i:s'),
             
             // Relationships
-            'client' => $this->whenLoaded('client', function () {
+            'customer' => $this->whenLoaded('customer', function () {
                 return [
                     'id' => $this->client->id,
                     'name' => $this->client->name,
