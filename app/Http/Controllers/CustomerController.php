@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\Customer;
 use Illuminate\Validation\Rule;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 
 class CustomerController extends Controller
 {
@@ -144,6 +146,7 @@ class CustomerController extends Controller
     // Additional utility endpoints
     public function locations()
     {
+        Log::info('we are in the locations method');
         $locations = Customer::distinct()->pluck('location')->filter()->sort()->values();
         return response()->json(['data' => $locations]);
     }

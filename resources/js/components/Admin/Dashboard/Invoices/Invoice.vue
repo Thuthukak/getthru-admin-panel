@@ -54,6 +54,7 @@
       :registrations="registrations"
       :packages="packages"
       :loading="loading"
+      @customer-created="refreshCustomerList"
       @close="closeModals"
       @submit="submitForm"
       @update:form="updateForm"
@@ -152,6 +153,14 @@ export default {
     const isAllSelected = computed(() => {
       return invoices.value.length > 0 && selectedInvoices.value.length === invoices.value.length
     })
+
+    const refreshCustomerList = () => {
+      fetchRegistrations()
+      // Optionally auto-select the new customer
+      if (registrations.value.length > 0) {
+        form.registration_id = registrations.value[0].id
+      }
+    }
     
     // API methods
     const fetchInvoices = async (page = 1) => {
@@ -723,6 +732,7 @@ export default {
       fetchStats,
       fetchRegistrations,
       fetchPackages,
+      refreshCustomerList,
       createInvoice,
       updateInvoice,
       deleteInvoice,

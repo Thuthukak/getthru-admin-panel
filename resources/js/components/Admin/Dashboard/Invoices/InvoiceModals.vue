@@ -10,7 +10,10 @@
         <div class="modal-body">
           <form @submit.prevent="$emit('submit')">
             <div class="form-group" v-if="showCreate">
-              <label>Customer</label>
+              <div class="d-flex justify-content-between">
+                <label>Customer</label>
+                <a type="button" @click="openCreateCustomerModal" class="text-sm">Add New Customer</a>
+              </div>
               <select :value="form.registration_id" @input="updateForm('registration_id', $event.target.value)" class="select-field" required>
                 <option value="">Select Customer</option>
                 <option 
@@ -27,11 +30,11 @@
               <label>Package</label>
               <select :value="form.package_price_id" @input="updateForm('package_price_id', $event.target.value)" class="select-field">
                 <option value="">Select Package</option>
-                <optgroup 
-                  v-for="(groupPackages, serviceType) in groupedPackages" 
-                  :key="serviceType" 
-                  :label="formatServiceType(serviceType)"
-                >
+                  <optgroup 
+                    v-for="(groupPackages, serviceType) in groupedPackages" 
+                    :key="serviceType" 
+                    :label="formatServiceType(serviceType)"
+                  >
                   <option 
                     v-for="pkg in groupPackages" 
                     :key="pkg.id" 
@@ -116,6 +119,16 @@
         </div>
       </div>
     </div>
+
+    <!-- Customer Modal Component -->
+    <CustomerCreateModal
+      :show="customerModalState.show"
+      :mode="customerModalState.mode"
+      :customer="customerModalState.selectedCustomer"
+      :saving="customerModalState.saving"
+      @close="closeCustomerModal"
+      @save="saveCustomer"
+    />
 
     <!-- View Modal -->
     <div v-if="showView" class="modal-overlay" @click="$emit('close')">
@@ -226,8 +239,13 @@
 </template>
 
 <script>
+import CustomerCreateModal from '../../Dashboard/Customers/CustomerCreateModal.vue'
+
 export default {
   name: 'InvoiceModals',
+  components: {
+    CustomerCreateModal
+  },
   props: {
     showCreate: {
       type: Boolean,
@@ -262,7 +280,17 @@ export default {
       default: false
     }
   },
-  emits: ['close', 'submit', 'update:form'],
+  emits: ['close', 'submit', 'update:form', 'customer-created'],
+  data() {
+    return {
+      customerModalState: {
+        show: false,
+        mode: 'create',
+        selectedCustomer: null,
+        saving: false
+      }
+    }
+  },
   computed: {
     groupedPackages() {
       if (!this.packages || !this.packages.length) return {}
@@ -282,6 +310,57 @@ export default {
     }
   },
   methods: {
+    // Customer Modal Methods
+    openCreateCustomerModal() {
+      this.customerModalState.mode = 'create'
+      this.customerModalState.selectedCustomer = null
+      this.customerModalState.show = true
+    },
+    closeCustomerModal() {
+      this.customerModalState.show = false
+      this.customerModalState.selectedCustomer = null
+      this.customerModalState.saving = false
+    },
+    async saveCustomer(customerData) {
+      this.customerModalState.saving = true
+      try {
+        // You'll need to implement the API call here
+        // This is just an example - adjust the endpoint and logic as needed
+        const response = await fetch('/api/customers', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            // Add your auth headers here
+          },
+          body: JSON.stringify(customerData)
+        })
+        
+        if (!response.ok) {
+          throw new Error('Failed to create customer')
+        }
+        
+        const newCustomer = await response.json()
+        
+        // Emit event to parent component to refresh registrations list
+        this.$emit('customer-created', newCustomer)
+        
+        // Close the modal
+        this.closeCustomerModal()
+        
+        // Show success message (you might want to handle this in parent)
+        this.$nextTick(() => {
+          alert('Customer created successfully!')
+        })
+        
+      } catch (error) {
+        console.error('Error creating customer:', error)
+        alert('Failed to create customer. Please try again.')
+      } finally {
+        this.customerModalState.saving = false
+      }
+    },
+    
+    // Form Methods
     updateForm(key, value) {
       const updatedForm = { ...this.form, [key]: value }
       
@@ -295,6 +374,8 @@ export default {
       
       this.$emit('update:form', updatedForm)
     },
+    
+    // Formatting Methods
     formatAmount(amount) {
       return parseFloat(amount || 0).toFixed(2)
     },
@@ -328,6 +409,26 @@ export default {
 </script>
 
 <style scoped>
+/* Utility classes */
+.d-flex {
+  display: flex;
+}
+
+.justify-content-between {
+  justify-content: space-between;
+}
+
+.text-sm {
+  font-size: 12px;
+  color: #3b82f6;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.text-sm:hover {
+  text-decoration: underline;
+}
+
 /* Modals */
 .modal-overlay {
   position: fixed;

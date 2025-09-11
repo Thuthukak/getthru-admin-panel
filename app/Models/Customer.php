@@ -3,9 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Registration;
+
+
 
 class customer extends Model
 {
+
     protected $table = 'customers';
 
     protected $fillable = [
@@ -17,4 +21,9 @@ class customer extends Model
         'location',
         'address',
     ];
+
+    public function registrations()
+{
+    return $this->hasMany(Registration::class);
+}
 }

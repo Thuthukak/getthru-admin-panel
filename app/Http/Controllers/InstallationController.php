@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Registration;
+use App\Models\PackagePrice;
+use App\Models\Customer;
 use App\Models\InstallationImage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,7 +20,7 @@ class InstallationController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Registration::with('images'); // Load images relationship
+        $query = Registration::with(['images', 'customer']); // Load customer relationship too
         
         // Apply filters
         $this->applyFilters($query, $request);
@@ -57,7 +59,7 @@ class InstallationController extends Controller
      */
     public function show($id): JsonResponse
     {
-        $installation = Registration::with('images')->findOrFail($id);
+        $installation = Registration::with(['images', 'customer'])->findOrFail($id);
         $installation->images_count = $installation->images->count();
         $installation->images_uploaded = $installation->images_count >= 3;
         
@@ -73,7 +75,7 @@ class InstallationController extends Controller
             'status' => 'required|string|in:pending,confirmed,in_progress,processed,cancelled'
         ]);
         
-        $installation = Registration::with('images')->findOrFail($id);
+        $installation = Registration::with(['images', 'customer'])->findOrFail($id);
         
         // Check if trying to set to processed without images
         if ($request->status === 'processed') {
@@ -207,7 +209,7 @@ class InstallationController extends Controller
      */
     public function update(Request $request, $id): JsonResponse
     {
-        $installation = Registration::findOrFail($id);
+        $installation = Registration::with('customer')->findOrFail($id);
         
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
@@ -241,9 +243,17 @@ class InstallationController extends Controller
         
         $installation->update($validated);
         
+        // If customer data fields are being updated, also update the customer record
+        $customerFields = ['name', 'surname', 'phone', 'alternative_phone', 'email', 'location', 'address'];
+        $customerUpdates = array_intersect_key($validated, array_flip($customerFields));
+        
+        if (!empty($customerUpdates) && $installation->customer) {
+            $installation->customer->update($customerUpdates);
+        }
+        
         return response()->json([
             'message' => 'Installation updated successfully',
-            'installation' => $installation->load('images')
+            'installation' => $installation->load(['images', 'customer'])
         ]);
     }
     
@@ -281,7 +291,7 @@ class InstallationController extends Controller
         
         return response()->json([
             'message' => 'Installation restored successfully',
-            'installation' => $installation
+            'installation' => $installation->load(['images', 'customer'])
         ]);
     }
     
@@ -316,10 +326,31 @@ class InstallationController extends Controller
             'this_month' => Registration::whereMonth('created_at', Carbon::now()->month)
                 ->whereYear('created_at', Carbon::now()->year)
                 ->count(),
-            'today' => Registration::whereDate('created_at', Carbon::today())->count()
+            'today' => Registration::whereDate('created_at', Carbon::today())->count(),
+            'unique_customers' => Registration::distinct('customer_id')->whereNotNull('customer_id')->count()
         ];
     
         return response()->json($stats);
+    }
+    
+    /**
+     * Get installations by customer
+     */
+    public function getByCustomer($customerId): JsonResponse
+    {
+        $installations = Registration::with(['images', 'customer'])
+            ->where('customer_id', $customerId)
+            ->orderBy('created_at', 'desc')
+            ->get();
+            
+        // Add images_count to each installation
+        $installations->transform(function ($installation) {
+            $installation->images_count = $installation->images->count();
+            $installation->images_uploaded = $installation->images_count >= 3;
+            return $installation;
+        });
+        
+        return response()->json($installations);
     }
     
     /**
@@ -346,7 +377,12 @@ class InstallationController extends Controller
             $query->whereDate('installation_date', '<=', $request->date_to);
         }
         
-        // Search filter (searches in name, surname, email, phone)
+        // Customer filter
+        if ($request->filled('customer_id')) {
+            $query->where('customer_id', $request->customer_id);
+        }
+        
+        // Search filter (searches in name, surname, email, phone AND customer data)
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
@@ -354,7 +390,15 @@ class InstallationController extends Controller
                   ->orWhere('surname', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%")
                   ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('alternative_phone', 'like', "%{$search}%");
+                  ->orWhere('alternative_phone', 'like', "%{$search}%")
+                  // Also search in customer data
+                  ->orWhereHas('customer', function($customerQuery) use ($search) {
+                      $customerQuery->where('name', 'like', "%{$search}%")
+                                   ->orWhere('surname', 'like', "%{$search}%")
+                                   ->orWhere('email', 'like', "%{$search}%")
+                                   ->orWhere('phone', 'like', "%{$search}%")
+                                   ->orWhere('alternative_phone', 'like', "%{$search}%");
+                  });
             });
         }
         

@@ -69,8 +69,20 @@ class RegistrationController extends Controller
                 ], 422);
             }
 
-            // Create registration using Eloquent model
+            // Create customer record first
+            $customer = Customer::create([
+                'name' => $validatedData['name'],
+                'surname' => $validatedData['surname'],
+                'phone' => $validatedData['phone'],
+                'alternative_phone' => $validatedData['alternativePhone'],
+                'email' => $validatedData['email'],
+                'location' => $validatedData['location'] === 'Other' ? $validatedData['otherLocation'] : $validatedData['location'],
+                'address' => $validatedData['address'],
+            ]);
+
+            // Create registration using Eloquent model with customer_id
             $registration = Registration::create([
+                'customer_id' => $customer->id, // Link to the customer
                 'name' => $validatedData['name'],
                 'surname' => $validatedData['surname'],
                 'phone' => $validatedData['phone'],
@@ -88,23 +100,13 @@ class RegistrationController extends Controller
                 'comments' => $validatedData['comments'],
             ]);
 
-            // Load the package price relationship
-            $registration->load('packagePrice');
-
-            // create customer record
-            $customer = Customer::create([
-                'name' => $validatedData['name'],
-                'surname' => $validatedData['surname'],
-                'phone' => $validatedData['phone'],
-                'alternative_phone' => $validatedData['alternativePhone'],
-                'email' => $validatedData['email'],
-                'location' => $validatedData['location'] === 'Other' ? $validatedData['otherLocation'] : $validatedData['location'],
-                'address' => $validatedData['address'],
-            ]);
+            // Load the relationships
+            $registration->load(['packagePrice', 'customer']);
 
             // Log successful submission
             Log::info('Registration form submitted', [
                 'registration_id' => $registration->id,
+                'customer_id' => $customer->id,
                 'email' => $registration->email,
                 'name' => $registration->full_name,
                 'package_price_id' => $registration->package_price_id,
@@ -121,6 +123,7 @@ class RegistrationController extends Controller
                 'success' => true,
                 'message' => 'Registration submitted successfully',
                 'registration_id' => $registration->id,
+                'customer_id' => $customer->id,
                 'data' => [
                     'full_name' => $registration->full_name,
                     'email' => $registration->email,
@@ -144,7 +147,7 @@ class RegistrationController extends Controller
                 'message' => 'An error occurred while processing your request'
             ], 500);
         }
-    }
+}
 
     /**
      * Get available packages for a service type

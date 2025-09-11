@@ -84,9 +84,6 @@
       <table class="data-table">
         <thead>
           <tr>
-            <th @click="sort('id')" :class="getSortClass('id')">
-              ID <i class="sort-icon"></i>
-            </th>
             <th @click="sort('name')" :class="getSortClass('name')">
               Name <i class="sort-icon"></i>
             </th>
@@ -102,26 +99,25 @@
             <th @click="sort('location')" :class="getSortClass('location')">
               Location <i class="sort-icon"></i>
             </th>
-            <th @click="sort('created_at')" :class="getSortClass('created_at')">
-              Created <i class="sort-icon"></i>
+            <th @click="sort('address')" :class="getSortClass('address')">
+              Address <i class="sort-icon"></i>
             </th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="customers.length === 0">
-            <td colspan="8" class="no-data">
+            <td colspan="7" class="no-data">
               <p>No customers found</p>
             </td>
           </tr>
           <tr v-for="customer in customers" :key="customer.id">
-            <td>{{ customer.id }}</td>
             <td>{{ customer.name }}</td>
             <td>{{ customer.surname }}</td>
             <td>{{ customer.email }}</td>
             <td>{{ customer.phone }}</td>
             <td>{{ customer.location }}</td>
-            <td>{{ formatDate(customer.created_at) }}</td>
+            <td>{{ customer.address }}</td>
             <td class="actions">
               <button @click="viewCustomer(customer)" class="btn-icon btn-view" title="View">
                 <i class="icon-eye"></i>
@@ -187,87 +183,15 @@
       </div>
     </div>
 
-    <!-- Customer Modal -->
-    <div v-if="showModal" class="modal-overlay" @click="closeModal">
-      <div class="modal" @click.stop>
-        <div class="modal-header">
-          <h3>{{ modalMode === 'create' ? 'Add New Customer' : modalMode === 'edit' ? 'Edit Customer' : 'Customer Details' }}</h3>
-          <button @click="closeModal" class="btn-close">&times;</button>
-        </div>
-        <div class="modal-body">
-          <form v-if="modalMode !== 'view'" @submit.prevent="saveCustomer">
-            <div class="form-row">
-              <div class="form-group">
-                <label>Name *</label>
-                <input v-model="customerForm.name" type="text" class="form-control" required>
-              </div>
-              <div class="form-group">
-                <label>Surname *</label>
-                <input v-model="customerForm.surname" type="text" class="form-control" required>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Email *</label>
-                <input v-model="customerForm.email" type="email" class="form-control" required>
-              </div>
-              <div class="form-group">
-                <label>Phone *</label>
-                <input v-model="customerForm.phone" type="text" class="form-control" required>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Alternative Phone</label>
-                <input v-model="customerForm.alternative_phone" type="text" class="form-control">
-              </div>
-              <div class="form-group">
-                <label>Location *</label>
-                <input v-model="customerForm.location" type="text" class="form-control" required>
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Address *</label>
-              <textarea v-model="customerForm.address" class="form-control" rows="3" required></textarea>
-            </div>
-            <div class="form-actions">
-              <button type="button" @click="closeModal" class="btn btn-secondary">Cancel</button>
-              <button type="submit" class="btn btn-primary" :disabled="saving">
-                {{ saving ? 'Saving...' : (modalMode === 'create' ? 'Create Customer' : 'Update Customer') }}
-              </button>
-            </div>
-          </form>
-          
-          <!-- View Mode -->
-          <div v-else class="customer-details">
-            <div class="detail-row">
-              <strong>Name:</strong> {{ selectedCustomer.name }} {{ selectedCustomer.surname }}
-            </div>
-            <div class="detail-row">
-              <strong>Email:</strong> {{ selectedCustomer.email }}
-            </div>
-            <div class="detail-row">
-              <strong>Phone:</strong> {{ selectedCustomer.phone }}
-            </div>
-            <div class="detail-row" v-if="selectedCustomer.alternative_phone">
-              <strong>Alternative Phone:</strong> {{ selectedCustomer.alternative_phone }}
-            </div>
-            <div class="detail-row">
-              <strong>Location:</strong> {{ selectedCustomer.location }}
-            </div>
-            <div class="detail-row">
-              <strong>Address:</strong> {{ selectedCustomer.address }}
-            </div>
-            <div class="detail-row">
-              <strong>Created:</strong> {{ formatDate(selectedCustomer.created_at) }}
-            </div>
-            <div class="detail-row">
-              <strong>Updated:</strong> {{ formatDate(selectedCustomer.updated_at) }}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Customer Modal Component -->
+    <CustomerCreateModal
+      :show="showModal"
+      :mode="modalMode"
+      :customer="selectedCustomer"
+      :saving="saving"
+      @close="closeModal"
+      @save="saveCustomer"
+    />
 
     <!-- Delete Confirmation Modal -->
     <div v-if="showDeleteModal" class="modal-overlay" @click="closeDeleteModal">
@@ -299,6 +223,7 @@
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
 import axios from 'axios'
+import CustomerCreateModal from './CustomerCreateModal.vue'
 
 // State
 const customers = ref([])
@@ -335,17 +260,6 @@ const pagination = reactive({
   total: 0,
   from: 0,
   to: 0
-})
-
-// Form
-const customerForm = reactive({
-  name: '',
-  surname: '',
-  email: '',
-  phone: '',
-  alternative_phone: '',
-  location: '',
-  address: ''
 })
 
 // Toast
@@ -467,7 +381,7 @@ const clearFilters = () => {
 // Modal Methods
 const openCreateModal = () => {
   modalMode.value = 'create'
-  resetForm()
+  selectedCustomer.value = null
   showModal.value = true
 }
 
@@ -480,30 +394,22 @@ const viewCustomer = (customer) => {
 const editCustomer = (customer) => {
   selectedCustomer.value = customer
   modalMode.value = 'edit'
-  Object.assign(customerForm, customer)
   showModal.value = true
 }
 
 const closeModal = () => {
   showModal.value = false
-  resetForm()
   selectedCustomer.value = null
 }
 
-const resetForm = () => {
-  Object.keys(customerForm).forEach(key => {
-    customerForm[key] = ''
-  })
-}
-
-const saveCustomer = async () => {
+const saveCustomer = async (customerData) => {
   saving.value = true
   try {
     if (modalMode.value === 'create') {
-      await axios.post('/api/customers', customerForm)
+      await axios.post('/api/customers', customerData)
       showToast('Customer created successfully')
     } else {
-      await axios.put(`/api/customers/${selectedCustomer.value.id}`, customerForm)
+      await axios.put(`/api/customers/${selectedCustomer.value.id}`, customerData)
       showToast('Customer updated successfully')
     }
     
@@ -539,16 +445,6 @@ const deleteCustomer = async () => {
     showToast('Error deleting customer', 'error')
   }
   deleting.value = false
-}
-
-const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
 }
 
 const showToast = (message, type = 'success') => {
@@ -760,18 +656,6 @@ watch(() => [filters.location, filters.created_from, filters.created_to], () => 
   user-select: none;
 }
 
-.data-table th.sortable:hover {
-  background: #e9ecef;
-}
-
-.data-table th.sorted-asc .sort-icon:before {
-  content: "↑";
-}
-
-.data-table th.sorted-desc .sort-icon:before {
-  content: "↓";
-}
-
 .data-table th.sortable .sort-icon:before {
   content: "↕";
   opacity: 0.3;
@@ -968,50 +852,6 @@ watch(() => [filters.location, filters.created_from, filters.created_to], () => 
   border-top: 1px solid #eee;
 }
 
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 15px;
-  margin-bottom: 15px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-group label {
-  margin-bottom: 5px;
-  font-weight: 500;
-  color: #333;
-}
-
-.form-group textarea {
-  resize: vertical;
-  min-height: 80px;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #eee;
-}
-
-.customer-details .detail-row {
-  display: flex;
-  margin-bottom: 12px;
-  padding: 8px 0;
-  border-bottom: 1px solid #f8f9fa;
-}
-
-.customer-details .detail-row strong {
-  min-width: 140px;
-  color: #333;
-}
-
 .warning {
   color: #dc3545;
   font-size: 14px;
@@ -1082,14 +922,21 @@ watch(() => [filters.location, filters.created_from, filters.created_to], () => 
     flex-direction: column;
     gap: 15px;
   }
-  
-  .form-row {
-    grid-template-columns: 1fr;
-  }
-  
-  .modal {
-    width: 95%;
-    margin: 20px;
-  }
 }
+.table:hover {
+  background: #e9ecef;
+}
+
+.data-table th.sorted-asc .sort-icon:before {
+  content: "↑";
+}
+
+.data-table th.sorted-desc .sort-icon:before {
+  content: "↓";
+}
+
+.data-table th.sortable:hover {
+  background: #f8f9fa;
+}
+
 </style>

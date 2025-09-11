@@ -24,6 +24,7 @@ class Registration extends Model
      * @var array<int, string>
      */
     protected $fillable = [
+        'customer_id',
         'name',
         'surname',
         'phone',
@@ -69,6 +70,11 @@ class Registration extends Model
     {
         return $this->belongsTo(PackagePrice::class);
     }
+
+    public function customer()
+   {
+       return $this->belongsTo(Customer::class);
+   }
 
     /**
      * Get the images for the installation

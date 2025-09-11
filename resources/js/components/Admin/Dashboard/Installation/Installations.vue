@@ -87,20 +87,20 @@
               <tr v-for="installation in installations" :key="installation.id">
                 <td>
                   <div>
-                    <strong>{{ installation.name }} {{ installation.surname }}</strong>
+                    <strong>{{ getCustomerName(installation) }}</strong>
                     <br>
-                    <small class="text-muted">{{ installation.location }}</small>
+                    <small class="text-muted">{{ getCustomerLocation(installation) }}</small>
                   </div>
                 </td>
                 <td>
                   <div>
-                    <i class="bi bi-telephone"></i> {{ installation.phone }}
-                    <br v-if="installation.alternative_phone">
-                    <small v-if="installation.alternative_phone" class="text-muted">
-                      Alt: {{ installation.alternative_phone }}
+                    <i class="bi bi-telephone"></i> {{ getCustomerPhone(installation) }}
+                    <br v-if="getCustomerAltPhone(installation)">
+                    <small v-if="getCustomerAltPhone(installation)" class="text-muted">
+                      Alt: {{ getCustomerAltPhone(installation) }}
                     </small>
                     <br>
-                    <i class="bi bi-envelope"></i> {{ installation.email }}
+                    <i class="bi bi-envelope"></i> {{ getCustomerEmail(installation) }}
                   </div>
                 </td>
                 <td>
@@ -223,7 +223,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">
-              Installation Images - {{ selectedInstallation?.name }} {{ selectedInstallation?.surname }}
+              Installation Images - {{ getCustomerName(selectedInstallation) }}
             </h5>
             <button @click="closeImageViewer" type="button" class="btn-close"></button>
           </div>
@@ -302,6 +302,34 @@ export default {
     this.fetchServiceTypes()
   },
   methods: {
+    // Helper methods to get customer data (fallback to installation data for backward compatibility)
+    getCustomerName(installation) {
+      if (installation.customer) {
+        return `${installation.customer.name} ${installation.customer.surname}`
+      }
+      return `${installation.name} ${installation.surname}`
+    },
+    
+    getCustomerPhone(installation) {
+      return installation.customer ? installation.customer.phone : installation.phone
+    },
+    
+    getCustomerAltPhone(installation) {
+      return installation.customer ? installation.customer.alternative_phone : installation.alternative_phone
+    },
+    
+    getCustomerEmail(installation) {
+      return installation.customer ? installation.customer.email : installation.email
+    },
+    
+    getCustomerLocation(installation) {
+      return installation.customer ? installation.customer.location : installation.location
+    },
+    
+    getCustomerAddress(installation) {
+      return installation.customer ? installation.customer.address : installation.address
+    },
+    
     //go to add installation page
     goToAddInstallation() {
       window.location.href = '/reg-form';
@@ -395,7 +423,7 @@ export default {
     
     handleEditInstallation(installation) {
       console.log('Edit installation:', installation)
-      this.showSuccess(`Edit functionality for ${installation.name} ${installation.surname} would be implemented here`)
+      this.showSuccess(`Edit functionality for ${this.getCustomerName(installation)} would be implemented here`)
     },
     
     // Image upload methods
@@ -502,9 +530,9 @@ export default {
     
     formatImageType(type) {
       const types = {
-        'before': 'Before Installation',
-        'during': 'During Installation', 
-        'after': 'After Installation'
+        'inside': 'Inside Installation',
+        'outside': 'Outside Installation', 
+        'cabling': 'Cabling Work'
       }
       return types[type] || type
     },

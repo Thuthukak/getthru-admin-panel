@@ -40,8 +40,8 @@ Route::prefix('admin')->group(function () {
         Route::delete('/profile', [ProfileController::class, 'destroy']);
     });
         Route::prefix('api')->group(function () {
-            Route::get('/get/profile-data', [ProfileController::class, 'profileData'])->name('profile.data');
-            Route::get('/profile/data', [ProfileController::class, 'show'])->name('profile.data');
+            Route::get('/get/profile-data', [ProfileController::class, 'profileData'])->name('get.profile.data');
+           
         });
 });
 
@@ -137,15 +137,14 @@ Route::prefix('api')->group(function () {
     Route::get('/customers/{customer}', [CustomerController::class, 'show']);
     Route::put('/customers/{customer}', [CustomerController::class, 'update']);
     Route::delete('/customers/{customer}', [CustomerController::class, 'destroy']);
-    Route::get('customers/locations', [CustomerController::class, 'locations']);
-    Route::get('customers/stats', [CustomerController::class, 'stats']);
+    Route::get('/customers/locations', [CustomerController::class, 'locations']);
+    Route::get('/customers/stats', [CustomerController::class, 'stats']);
 
 
 
    
     
     // Helper endpoints
-    Route::get('/invoices/profile/data', [ProfileController::class, 'show'])->name('profile.data');
 
     // registration form
     Route::post('/reg-form-submit', [RegistrationController::class, 'store'])->name('reg-form.submit');
