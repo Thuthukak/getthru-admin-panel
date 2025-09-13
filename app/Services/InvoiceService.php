@@ -32,16 +32,17 @@ class InvoiceService
             
             // Handle deposit logic based on payment method
             if (strtolower($registration->deposit_payment) === 'pay later') {
-                // Pay later: Add full deposit to main invoice
+                // Pay later: Add full deposit to main invoice, but keep it inactive until processed
                 $mainInvoiceAmount = $baseAmount + self::FULL_DEPOSIT;
                 
-                $invoice = $this->createInvoice($registration, $mainInvoiceAmount, 'main');
+                $invoice = $this->createInvoice($registration, $mainInvoiceAmount, 'main', false); // is_active = false
                 
                 Log::info('Pay later invoice created', [
                     'registration_id' => $registration->id,
                     'invoice_id' => $invoice->id,
                     'amount' => $mainInvoiceAmount,
-                    'deposit_included' => self::FULL_DEPOSIT
+                    'deposit_included' => self::FULL_DEPOSIT,
+                    'is_active' => false
                 ]);
 
                 return $invoice;
@@ -49,19 +50,21 @@ class InvoiceService
             } else {
                 // Other payment methods: Create separate deposit invoice + main invoice with half deposit
                 
-                // 1. Create deposit invoice (R475)
+                // 1. Create deposit invoice (R475) - ACTIVE immediately
                 $depositInvoice = $this->createDepositInvoice($registration);
                 
-                // 2. Create main invoice with package price + half deposit (R475)
+                // 2. Create main invoice with package price + half deposit (R475) - INACTIVE until processed
                 $mainInvoiceAmount = $baseAmount + self::HALF_DEPOSIT;
-                $mainInvoice = $this->createInvoice($registration, $mainInvoiceAmount, 'main');
+                $mainInvoice = $this->createInvoice($registration, $mainInvoiceAmount, 'main', false); // is_active = false
                 
                 Log::info('Split payment invoices created', [
                     'registration_id' => $registration->id,
                     'deposit_invoice_id' => $depositInvoice->id,
                     'deposit_amount' => self::HALF_DEPOSIT,
+                    'deposit_active' => true,
                     'main_invoice_id' => $mainInvoice->id,
                     'main_amount' => $mainInvoiceAmount,
+                    'main_active' => false,
                     'payment_method' => $registration->deposit_payment
                 ]);
 
@@ -100,6 +103,7 @@ class InvoiceService
             'payment_period' => 'one-time', // Deposit is one-time payment
             'billing_date' => $billingDate,
             'due_date' => $dueDate,
+            'is_active' => true, // DEPOSIT INVOICES ARE ALWAYS ACTIVE
             'status' => 'pending',
             'invoice_type' => 'deposit', // New field to distinguish invoice types
             'description' => 'Registration Deposit - ' . $registration->packagePrice->service_type . ' (' . $registration->packagePrice->package . ')',
@@ -111,7 +115,7 @@ class InvoiceService
     /**
      * Create main service invoice
      */
-    private function createInvoice(Registration $registration, $amount, $type = 'main')
+    private function createInvoice(Registration $registration, $amount, $type = 'main', $isActive = false)
     {
         $billingDate = $this->calculateBillingDate($registration->payment_period);
         $dueDate = $billingDate->copy()->addDays(30);
@@ -139,12 +143,32 @@ class InvoiceService
             'payment_period' => $registration->payment_period,
             'billing_date' => $billingDate,
             'due_date' => $dueDate,
+            'is_active' => $isActive, // Use parameter to control active state
             'status' => 'pending',
             'invoice_type' => $type, // 'main' or 'deposit'
             'description' => $description,
             'is_recurring' => $type === 'main', // Only main invoices are recurring
             'next_billing_date' => $type === 'main' ? $this->calculateNextBillingDate($billingDate, $registration->payment_period) : null
         ]);
+    }
+
+
+    /**
+     * Activate main invoices for a registration (called when status becomes 'processed')
+     */
+    public function activateMainInvoices($registrationId)
+    {
+        $updated = Invoice::where('registration_id', $registrationId)
+            ->where('invoice_type', 'main')
+            ->where('is_active', false)
+            ->update(['is_active' => true]);
+
+        Log::info('Main invoices activated', [
+            'registration_id' => $registrationId,
+            'invoices_activated' => $updated
+        ]);
+
+        return $updated;
     }
 
     /**
@@ -159,6 +183,7 @@ class InvoiceService
         $dueInvoices = Invoice::where('next_billing_date', $today)
             ->where('is_recurring', true)
             ->where('status', '!=', 'cancelled')
+            ->where('is_active', true) // Only active invoices
             ->where('invoice_type', 'main') // Only main invoices should recur
             ->with('registration')
             ->get();
@@ -198,6 +223,7 @@ class InvoiceService
                     'payment_period' => $registration->payment_period,
                     'billing_date' => $billingDate,
                     'due_date' => $dueDate,
+                    'is_active' => true, // New recurring invoices are active
                     'status' => 'pending',
                     'invoice_type' => 'main',
                     'description' => $packagePrice->service_type . ' (' . $packagePrice->package . ')',

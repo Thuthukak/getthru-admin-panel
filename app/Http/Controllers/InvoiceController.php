@@ -21,135 +21,190 @@ class InvoiceController extends Controller
     }
 
     /**
-     * Display a listing of invoices with filtering and pagination
+     * Display a listing of active invoices
+     * Only shows invoices where is_active = 1
      */
     public function index(Request $request): JsonResponse
     {
-        Log::info('InvoiceController@index', $request->all());
-       
         try {
-            // Debug: Check if Invoice model can be accessed
-            Log::info('Total invoices in DB: ' . Invoice::count());
-            
-            $query = Invoice::query();
-            
-            // Add relationships including packagePrice
-            try {
-                $query->with(['registration', 'packagePrice', 'emailLogs']);
-                Log::info('Query with relationships built successfully');
-            } catch (\Exception $e) {
-                Log::error('Error with relationships: ' . $e->getMessage());
-                // Fall back to query without relationships
-                $query = Invoice::query();
-            }
-            
-            // Apply filters with debugging
-            if ($request->has('status') && $request->status !== '' && $request->status !== null) {
-                Log::info('Applying status filter: ' . $request->status);
+            $query = Invoice::with(['registration', 'packagePrice'])
+                ->where('is_active', true) // Only fetch active invoices (1 in database)
+                ->orderBy('created_at', 'desc');
+
+            // Apply filters
+            if ($request->filled('status')) {
                 $query->where('status', $request->status);
             }
-            
-            if ($request->has('search') && $request->search !== '' && $request->search !== null) {
-                Log::info('Applying search filter: ' . $request->search);
-                $search = $request->search;
-                $query->where(function ($q) use ($search) {
-                    $q->where('customer_name', 'like', "%{$search}%")
-                      ->orWhere('customer_email', 'like', "%{$search}%")
-                      ->orWhere('invoice_number', 'like', "%{$search}%");
-                });
+
+            if ($request->filled('invoice_type')) {
+                $query->where('invoice_type', $request->invoice_type);
             }
-            
-            if ($request->has('date_from') && $request->date_from !== '' && $request->date_from !== null) {
-                Log::info('Applying date_from filter: ' . $request->date_from);
+
+            if ($request->filled('customer_email')) {
+                $query->where('customer_email', 'like', '%' . $request->customer_email . '%');
+            }
+
+            if ($request->filled('customer_name')) {
+                $query->where('customer_name', 'like', '%' . $request->customer_name . '%');
+            }
+
+            if ($request->filled('date_from')) {
                 $query->whereDate('billing_date', '>=', $request->date_from);
             }
-            
-            if ($request->has('date_to') && $request->date_to !== '' && $request->date_to !== null) {
-                Log::info('Applying date_to filter: ' . $request->date_to);
+
+            if ($request->filled('date_to')) {
                 $query->whereDate('billing_date', '<=', $request->date_to);
             }
-            
-            // Filter by service type using packagePrice relationship
-            if ($request->has('service_type') && $request->service_type !== '' && $request->service_type !== null) {
-                Log::info('Applying service_type filter: ' . $request->service_type);
-                $query->byServiceType($request->service_type);
+
+            // Search across multiple fields
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('customer_name', 'like', "%{$search}%")
+                      ->orWhere('customer_email', 'like', "%{$search}%")
+                      ->orWhere('invoice_number', 'like', "%{$search}%")
+                      ->orWhere('customer_phone', 'like', "%{$search}%");
+                });
             }
-            
-            // Filter by package using packagePrice relationship
-            if ($request->has('package') && $request->package !== '' && $request->package !== null) {
-                Log::info('Applying package filter: ' . $request->package);
-                $query->byPackage($request->package);
-            }
-            
-            if ($request->has('overdue') && $request->overdue === 'true') {
-                Log::info('Applying overdue filter');
-                try {
-                    $query->overdue();
-                } catch (\Exception $e) {
-                    Log::error('Overdue scope error: ' . $e->getMessage());
-                    // Fallback overdue logic
-                    $query->where('due_date', '<', now())->where('status', '!=', 'paid');
-                }
-            }
-            
-            // Debug: Check count after filters
-            Log::info('Count after filters: ' . $query->count());
-            
-            // Sorting with validation
-            $sortField = $request->get('sort_field', 'created_at');
-            $sortDirection = $request->get('sort_direction', 'desc');
-            
-            // Validate sort field exists in table
-            $validSortFields = [
-                'id', 'invoice_number', 'customer_name', 'customer_email', 
-                'amount', 'billing_date', 'due_date', 'status', 'created_at', 'updated_at'
-            ];
-            
-            if (!in_array($sortField, $validSortFields)) {
-                Log::warning('Invalid sort field: ' . $sortField . ', using created_at');
-                $sortField = 'created_at';
-            }
-            
-            if (!in_array($sortDirection, ['asc', 'desc'])) {
-                Log::warning('Invalid sort direction: ' . $sortDirection . ', using desc');
-                $sortDirection = 'desc';
-            }
-            
-            Log::info("Sorting by: {$sortField} {$sortDirection}");
-            $query->orderBy($sortField, $sortDirection);
-            
-            // Pagination
-            $perPage = (int) $request->get('per_page', 15);
-            if ($perPage < 1 || $perPage > 100) {
-                Log::warning('Invalid per_page value: ' . $perPage . ', using 15');
-                $perPage = 15;
-            }
-            
-            Log::info('Attempting pagination with per_page: ' . $perPage);
-            
-            // Get the SQL query for debugging
-            Log::info('Final SQL query: ' . $query->toSql());
-            Log::info('Query bindings: ', $query->getBindings());
-            
-            $invoices = $query->paginate($perPage);
-            
-            Log::info('Pagination result - Total: ' . $invoices->total() . ', Count: ' . $invoices->count());
-            
+
+            $invoices = $query->paginate($request->get('per_page', 15));
+
             return response()->json([
                 'success' => true,
-                'data' => $invoices
+                'data' => $invoices,
+                'message' => 'Active invoices retrieved successfully'
             ]);
-            
+
         } catch (\Exception $e) {
-            Log::error('Exception in InvoiceController@index: ' . $e->getMessage());
-            Log::error('Exception trace: ' . $e->getTraceAsString());
-            
+            Log::error('Failed to retrieve active invoices', [
+                'error' => $e->getMessage(),
+                'filters' => $request->all()
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to retrieve invoices: ' . $e->getMessage()
+                'message' => 'Failed to retrieve invoices'
             ], 500);
         }
     }
+
+    /**
+     * Get all invoices (including inactive) - for admin purposes
+     */
+    public function all(Request $request): JsonResponse
+    {
+        try {
+            $query = Invoice::with(['registration', 'packagePrice'])
+                ->orderBy('created_at', 'desc');
+
+            // Apply same filters as index method...
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+
+            if ($request->filled('invoice_type')) {
+                $query->where('invoice_type', $request->invoice_type);
+            }
+
+            if ($request->filled('is_active')) {
+                $query->where('is_active', $request->is_active === 'true' ? true : false);
+            }
+
+            // ... other filters ...
+
+            $invoices = $query->paginate($request->get('per_page', 15));
+
+            return response()->json([
+                'success' => true,
+                'data' => $invoices,
+                'message' => 'All invoices retrieved successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to retrieve all invoices', [
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve invoices'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get invoices by registration ID
+     */
+    public function getByRegistration($registrationId): JsonResponse
+    {
+        try {
+            $invoices = Invoice::with(['registration', 'packagePrice'])
+                ->where('registration_id', $registrationId)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $invoices,
+                'active_invoices' => $invoices->where('is_active', true)->values(),
+                'inactive_invoices' => $invoices->where('is_active', false)->values(),
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to retrieve invoices for registration', [
+                'registration_id' => $registrationId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve invoices'
+            ], 500);
+        }
+    }
+
+    /**
+     * Manually activate a main invoice (admin function)
+     */
+    public function activate($invoiceId): JsonResponse
+    {
+        try {
+            $invoice = Invoice::findOrFail($invoiceId);
+            
+            if ($invoice->invoice_type !== 'main') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only main invoices can be manually activated'
+                ], 422);
+            }
+
+            $invoice->update(['is_active' => true]);
+
+            Log::info('Invoice manually activated', [
+                'invoice_id' => $invoiceId,
+                'registration_id' => $invoice->registration_id
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Invoice activated successfully',
+                'data' => $invoice->load(['registration', 'packagePrice'])
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to activate invoice', [
+                'invoice_id' => $invoiceId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to activate invoice'
+            ], 500);
+        }
+    }
+
+
 
     /**
      * Store a newly created invoice
@@ -199,6 +254,7 @@ class InvoiceController extends Controller
                 'payment_period' => $registration->payment_period,
                 'billing_date' => $request->billing_date,
                 'due_date' => $request->due_date,
+                'is_active' => true,
                 'status' => 'pending',
                 'notes' => $request->notes,
                 'is_recurring' => $request->get('is_recurring', true),

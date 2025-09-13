@@ -61,6 +61,7 @@ class RegistrationController extends Controller
             // Return validation errors if any
             if ($validator->fails()) {
                 DB::rollBack();
+                Log::error('Validation failed', ['errors' => $validator->errors()->all()]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation failed',
@@ -70,14 +71,18 @@ class RegistrationController extends Controller
 
             // Get validated data
             $validatedData = $validator->validated();
+            Log::info('Validated data', ['validated_data' => $validatedData]);
 
             // Find the corresponding package price
             $packagePrice = PackagePrice::where('service_type', $validatedData['serviceType'])
                 ->where('package', $validatedData['package'])
                 ->first();
 
+            Log::info('Package price found', ['package_price' => $packagePrice]);
+
             if (!$packagePrice) {
                 DB::rollBack();
+                Log::error('Invalid service type and package combination');
                 return response()->json([
                     'success' => false,
                     'message' => 'Invalid service type and package combination'
@@ -94,6 +99,8 @@ class RegistrationController extends Controller
                 'location' => $validatedData['location'] === 'Other' ? $validatedData['otherLocation'] : $validatedData['location'],
                 'address' => $validatedData['address'],
             ]);
+
+            Log::info('Customer created', ['customer' => $customer]);
 
             // Create registration using Eloquent model with customer_id
             $registration = Registration::create([
@@ -116,6 +123,8 @@ class RegistrationController extends Controller
                 'status' => 'pending' // Start with pending status
             ]);
 
+            Log::info('Registration created', ['registration' => $registration]);
+
             // Load the relationships
             $registration->load(['packagePrice', 'customer']);
 
@@ -134,12 +143,12 @@ class RegistrationController extends Controller
             ];
 
             // Handle different invoice scenarios
-            if (strtolower($validatedData['depositPayment']) === 'pay later') {
+            if (strtolower($validatedData['depositPayment']) === 'Pay later') {
                 // Single invoice with full deposit included
                 $responseData['invoice'] = [
-                    'type' => 'single',
+                    'invoice_type' => 'main',
                     'invoice_id' => $invoiceResult->id,
-                    'total_amount' => $invoiceResult->amount,
+                    'amount' => $invoiceResult->amount,
                     'package_price' => $packagePrice->price,
                     'deposit_included' => 950,
                     'description' => 'Service package with full deposit (Pay Later option)'
@@ -165,9 +174,7 @@ class RegistrationController extends Controller
                 ];
             }
 
-            // Update registration status to processed since invoices were created successfully
-            $registration->update(['status' => 'processed']);
-
+           
             // Commit the transaction
             DB::commit();
 
@@ -307,10 +314,10 @@ class RegistrationController extends Controller
         return response()->json([
             'success' => true,
             'options' => [
-                ['value' => 'card', 'label' => 'Credit/Debit Card'],
-                ['value' => 'eft', 'label' => 'EFT Payment'],
-                ['value' => 'bank deposit', 'label' => 'Bank Deposit'],
-                ['value' => 'pay later', 'label' => 'Pay Later (Full deposit on first invoice)']
+                ['value' => 'Card', 'label' => 'Credit/Debit Card'],
+                ['value' => 'EFT Payment', 'label' => 'EFT Payment'],
+                ['value' => 'Bank deposit', 'label' => 'Bank Deposit'],
+                ['value' => 'Pay later', 'label' => 'Pay Later (Full deposit on first invoice)']
             ]
         ]);
     }

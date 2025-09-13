@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Registration;
 use App\Models\PackagePrice;
+use App\Services\InvoiceService;
 use App\Models\Customer;
 use App\Models\InstallationImage;
 use Illuminate\Http\JsonResponse;
@@ -15,6 +16,15 @@ use Illuminate\Support\Facades\DB;
 
 class InstallationController extends Controller
 {
+
+    protected $invoiceService;
+
+    public function __construct(InvoiceService $invoiceService)
+    {
+        $this->invoiceService = $invoiceService;
+    }
+
+
     /**
      * Display a listing of installations with filters and pagination
      */
@@ -95,6 +105,29 @@ class InstallationController extends Controller
         // Update processed_at timestamp when status changes to processed
         if ($request->status === 'processed' && $oldStatus !== 'processed') {
             $installation->processed_at = Carbon::now();
+            
+            // ACTIVATE MAIN INVOICES when status becomes processed
+            try {
+                $activatedCount = $this->invoiceService->activateMainInvoices($installation->id);
+                
+                \Log::info('Main invoices activated on status change', [
+                    'registration_id' => $installation->id,
+                    'old_status' => $oldStatus,
+                    'new_status' => $request->status,
+                    'invoices_activated' => $activatedCount
+                ]);
+                
+            } catch (\Exception $e) {
+                \Log::error('Failed to activate main invoices', [
+                    'registration_id' => $installation->id,
+                    'error' => $e->getMessage()
+                ]);
+                
+                return response()->json([
+                    'message' => 'Status updated but failed to activate invoices: ' . $e->getMessage(),
+                    'installation' => $installation
+                ], 500);
+            }
         }
         
         $installation->save();

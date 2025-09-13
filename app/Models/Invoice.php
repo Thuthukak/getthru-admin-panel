@@ -23,6 +23,7 @@ class Invoice extends Model
         'payment_period',
         'billing_date',
         'due_date',
+        'is_active',
         'status',
         'sent_at',
         'paid_at',
