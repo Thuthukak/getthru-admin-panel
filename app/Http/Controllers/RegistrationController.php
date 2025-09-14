@@ -52,9 +52,9 @@ class RegistrationController extends Controller
                 'package' => 'required|string|max:255',
                 'installationDate' => 'required|date|after_or_equal:today',
                 'paymentPeriod' => 'required|string|max:255',
-                'depositPayment' => 'required|string|in:card,eft,bank deposit,pay later',
-                'howDidYouKnow' => 'nullable|string|max:255',
-                'otherKnow' => 'nullable|string|max:255|required_if:howDidYouKnow,other',
+                'depositPayment' => 'required|string|in:EFT Payment,Card,Bank deposit,Pay later',
+                'howDidYouKnow' =>  'nullable|string|max:255',
+                'otherKnow' => 'nullable|string|max:255|required_if:howDidYouKnow,Other',
                 'comments' => 'nullable|string|max:1000',
             ]);
 

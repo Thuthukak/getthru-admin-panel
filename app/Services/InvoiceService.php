@@ -99,6 +99,7 @@ class InvoiceService
             'customer_address' => $registration->address,
             'invoice_number' => (new Invoice())->generateInvoiceNumber(),
             'package_price_id' => $registration->package_price_id,
+            'service_type' => $registration->service_type,
             'amount' => self::HALF_DEPOSIT,
             'payment_period' => 'one-time', // Deposit is one-time payment
             'billing_date' => $billingDate,
@@ -139,6 +140,7 @@ class InvoiceService
             'customer_address' => $registration->address,
             'invoice_number' => (new Invoice())->generateInvoiceNumber(),
             'package_price_id' => $registration->package_price_id,
+            'service_type' => $registration->service_type,
             'amount' => $amount,
             'payment_period' => $registration->payment_period,
             'billing_date' => $billingDate,
@@ -219,6 +221,7 @@ class InvoiceService
                     'customer_address' => $registration->address,
                     'invoice_number' => (new Invoice())->generateInvoiceNumber(),
                     'package_price_id' => $registration->package_price_id,
+                    'service_type' => $registration->service_type,
                     'amount' => $amount,
                     'payment_period' => $registration->payment_period,
                     'billing_date' => $billingDate,
