@@ -17,6 +17,8 @@ class Invoice extends Model
         'customer_address',
         'invoice_number',
         'package_price_id', // Use this instead of service_type and package
+        'service_type',
+        'package',
         'invoice_type',
         'description',
         'amount',

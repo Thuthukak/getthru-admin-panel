@@ -99,7 +99,8 @@ class InvoiceService
             'customer_address' => $registration->address,
             'invoice_number' => (new Invoice())->generateInvoiceNumber(),
             'package_price_id' => $registration->package_price_id,
-            'service_type' => $registration->service_type,
+            'package' => $registration->packagePrice->package,
+            'service_type' => $registration->service_type, // FIXED: Added missing service_type
             'amount' => self::HALF_DEPOSIT,
             'payment_period' => 'one-time', // Deposit is one-time payment
             'billing_date' => $billingDate,
@@ -107,7 +108,7 @@ class InvoiceService
             'is_active' => true, // DEPOSIT INVOICES ARE ALWAYS ACTIVE
             'status' => 'pending',
             'invoice_type' => 'deposit', // New field to distinguish invoice types
-            'description' => 'Registration Deposit - ' . $registration->packagePrice->service_type . ' (' . $registration->packagePrice->package . ')',
+            'description' => 'Installation Deposit - ' . $registration->packagePrice->service_type . ' (' . $registration->packagePrice->package . ')',
             'is_recurring' => false,
             'next_billing_date' => null
         ]);
@@ -126,9 +127,9 @@ class InvoiceService
         // Add deposit info to description if applicable
         if ($type === 'main') {
             if (strtolower($registration->deposit_payment) === 'pay later') {
-                $description .= ' - Including Registration Deposit (R' . self::FULL_DEPOSIT . ')';
+                $description .= ' - Including Installation Deposit (R' . self::FULL_DEPOSIT . ')';
             } else {
-                $description .= ' - Including Partial Registration Deposit (R' . self::HALF_DEPOSIT . ')';
+                $description .= ' - Including Partial Installation Deposit (R' . self::HALF_DEPOSIT . ')';
             }
         }
 
@@ -140,7 +141,8 @@ class InvoiceService
             'customer_address' => $registration->address,
             'invoice_number' => (new Invoice())->generateInvoiceNumber(),
             'package_price_id' => $registration->package_price_id,
-            'service_type' => $registration->service_type,
+            'service_type' => $registration->service_type, // This was already here correctly
+            'package' => $registration->packagePrice->package,
             'amount' => $amount,
             'payment_period' => $registration->payment_period,
             'billing_date' => $billingDate,
@@ -153,7 +155,6 @@ class InvoiceService
             'next_billing_date' => $type === 'main' ? $this->calculateNextBillingDate($billingDate, $registration->payment_period) : null
         ]);
     }
-
 
     /**
      * Activate main invoices for a registration (called when status becomes 'processed')
@@ -222,6 +223,7 @@ class InvoiceService
                     'invoice_number' => (new Invoice())->generateInvoiceNumber(),
                     'package_price_id' => $registration->package_price_id,
                     'service_type' => $registration->service_type,
+                    'package' => $registration->package,
                     'amount' => $amount,
                     'payment_period' => $registration->payment_period,
                     'billing_date' => $billingDate,
