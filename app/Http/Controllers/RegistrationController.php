@@ -131,6 +131,12 @@ class RegistrationController extends Controller
             // Create invoices based on deposit payment method
             $invoiceResult = $this->invoiceService->createInitialInvoice($registration);
             
+            // Add debug logging to see what we got back
+            Log::info('Invoice result received', [
+                'result_type' => is_array($invoiceResult) ? 'array' : (is_object($invoiceResult) ? get_class($invoiceResult) : gettype($invoiceResult)),
+                'result_data' => is_array($invoiceResult) ? 'array_with_keys_' . implode(',', array_keys($invoiceResult)) : 'single_object'
+            ]);
+            
             // Prepare response data based on invoice creation result
             $responseData = [
                 'full_name' => $registration->full_name,
@@ -143,7 +149,19 @@ class RegistrationController extends Controller
             ];
 
             // Handle different invoice scenarios
-            if (strtolower($validatedData['depositPayment']) === 'Pay later') {
+            if (strtolower($validatedData['depositPayment']) === 'pay later') {
+                // Check if invoiceResult is valid before accessing properties
+                if (!$invoiceResult || !is_object($invoiceResult)) {
+                    DB::rollBack();
+                    Log::error('Pay later invoice creation failed - invalid result', [
+                        'result' => $invoiceResult
+                    ]);
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Failed to create pay later invoice'
+                    ], 500);
+                }
+                
                 // Single invoice with full deposit included
                 $responseData['invoice'] = [
                     'invoice_type' => 'main',
@@ -154,6 +172,20 @@ class RegistrationController extends Controller
                     'description' => 'Service package with full deposit (Pay Later option)'
                 ];
             } else {
+                // Check if invoiceResult is a valid array with required keys
+                if (!is_array($invoiceResult) || 
+                    !isset($invoiceResult['deposit_invoice']) || 
+                    !isset($invoiceResult['main_invoice'])) {
+                    DB::rollBack();
+                    Log::error('Split invoice creation failed - invalid result', [
+                        'result' => $invoiceResult
+                    ]);
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Failed to create split invoices'
+                    ], 500);
+                }
+                
                 // Split invoices: deposit + main
                 $responseData['invoices'] = [
                     'type' => 'split',
@@ -213,6 +245,8 @@ class RegistrationController extends Controller
             ], 500);
         }
     }
+
+    // ... rest of the methods remain the same ...
 
     /**
      * Get available packages for a service type
