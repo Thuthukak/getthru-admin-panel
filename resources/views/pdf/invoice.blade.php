@@ -73,11 +73,19 @@
 <body>
     <div class="header">
         <div class="company-info">
-            <h2>Get Thru</h2>
-            <p>123 Business Street<br>
-            City, Province 1234<br>
-            Phone: +27 11 123 4567<br>
-            Email: sales@getthru.co.za</p>
+            <h2>{{ $companySettings['company_name'] ?? 'Your Company' }}</h2>
+            <p>
+                {!! nl2br(e($companySettings['company_address'] ?? 'Address not set')) !!}<br>
+                @if(!empty($companySettings['company_phone']))
+                    Phone: {{ $companySettings['company_phone'] }}<br>
+                @endif
+                @if(!empty($companySettings['company_email']))
+                    Email: {{ $companySettings['company_email'] }}<br>
+                @endif
+                @if(!empty($companySettings['company_website']))
+                    Web: {{ $companySettings['company_website'] }}
+                @endif
+            </p>
         </div>
         
         <div class="invoice-info">
@@ -136,36 +144,32 @@
     </div>
     <div class="clear"></div>
 
-    @if($isDeposit)
-        <div style="margin-top: 40px;">
-            <h4>Payment Terms:</h4>
-            <p>• Deposit payment is due within 7 days of invoice date</p>
-            <p>• Installation will be scheduled upon receipt of deposit</p>
-            <p>• Deposit is non-refundable once installation is completed</p>
-        </div>
-    @else
-        <div style="margin-top: 40px;">
-            <h4>Payment Terms:</h4>
-            <p>• Payment is due within 30 days of invoice date</p>
-            <p>• Late payments may incur additional charges</p>
-            <p>• Service may be suspended for overdue accounts</p>
-        </div>
-    @endif
+    <div style="margin-top: 40px;">
+        <h4>Payment Terms:</h4>
+        <div style="white-space: pre-line;">{{ $isDeposit ? ($companySettings['invoice_terms_deposit'] ?? 'Payment terms not set') : ($companySettings['invoice_terms_service'] ?? 'Payment terms not set') }}</div>
+    </div>
 
     <div style="margin-top: 40px;">
         <h4>Payment Methods:</h4>
         <p>
             <strong>Bank Transfer:</strong><br>
-            Account Name: Get Thru<br>
-            Bank: FNB<br>
-            Account Number: 123456789<br>
-            Branch Code: 123456<br>
+            Account Name: {{ $companySettings['bank_account_name'] ?? 'Not set' }}<br>
+            Bank: {{ $companySettings['bank_name'] ?? 'Not set' }}<br>
+            Account Number: {{ $companySettings['bank_account_number'] ?? 'Not set' }}<br>
+            Branch Code: {{ $companySettings['bank_branch_code'] ?? 'Not set' }}<br>
+            @if(!empty($companySettings['bank_account_type']))
+                Account Type: {{ $companySettings['bank_account_type'] }}<br>
+            @endif
             Reference: {{ $invoice->invoice_number }}
         </p>
     </div>
 
     <div class="footer">
-        <p>Thank you for your business! | Questions? Contact us at sales@getthru.co.za | {{ $invoice->invoice_number }}</p>
+        <p>
+            {{ $companySettings['invoice_footer_text'] ?? 'Thank you for your business!' }} | 
+            Questions? Contact us at {{ $companySettings['company_email'] ?? 'email@company.com' }} | 
+            {{ $invoice->invoice_number }}
+        </p>
     </div>
 </body>
 </html>

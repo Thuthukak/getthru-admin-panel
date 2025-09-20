@@ -18,6 +18,7 @@ use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\InstallationController;
 use App\Http\Controllers\PackagePriceController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\Admin\CompanySettingsController;
 use Inertia\Inertia;
 
 
@@ -38,6 +39,9 @@ Route::prefix('admin')->group(function () {
         Route::post('/profile/picture', [ProfileController::class, 'uploadPicture']);
         Route::delete('/profile/picture', [ProfileController::class, 'removePicture']);
         Route::delete('/profile', [ProfileController::class, 'destroy']);
+
+        Route::get('/company/settings', [CompanySettingsController::class, 'index'])->name('settings.index');
+        Route::post('/company/settings', [CompanySettingsController::class, 'update'])->name('settings.update');
     });
         Route::prefix('api')->group(function () {
             Route::get('/get/profile-data', [ProfileController::class, 'profileData'])->name('get.profile.data');

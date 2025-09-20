@@ -1,4 +1,3 @@
-?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -116,11 +115,11 @@
 
     <div class="footer">
         <p>Best regards,<br>
-        Your Service Team</p>
+        Get Thru Service Team</p>
         
         <p>
             <strong>Contact Information:</strong><br>
-            Email: billing@yourcompany.com<br>
+            Email: Sales@getthru.co.za<br>
             Phone: +27 11 123 4567
         </p>
         
@@ -128,5 +127,3 @@
     </div>
 </body>
 </html>
-
-<?php
