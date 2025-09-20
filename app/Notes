@@ -1,0 +1,31 @@
+// 10. Cron Job Configuration (for shared hosting without SSH/Supervisor access)
+
+/* 
+Add these TWO cron jobs to your server's cron configuration:
+
+1. SCHEDULER CRON JOB (runs every minute to check scheduled tasks):
+* * * * * cd /path/to/your/laravel/project && php artisan schedule:run >> /dev/null 2>&1
+
+2. QUEUE WORKER CRON JOB (processes email jobs every 2 minutes):
+*/2 * * * * cd /path/to/your/laravel/project && timeout 300 php artisan queue:work database --queue=high,default --stop-when-empty --max-jobs=10 >> /path/to/your/laravel/project/storage/logs/queue-worker.log 2>&1
+
+IMPORTANT NOTES FOR SHARED HOSTING:
+
+1. Replace '/path/to/your/laravel/project' with your actual project path
+2. The timeout command (300 seconds = 5 minutes) ensures the worker doesn't run indefinitely
+3. --stop-when-empty makes the worker exit when no jobs are available
+4. --max-jobs=10 limits jobs processed per run to prevent memory issues
+5. Logs are written to storage/logs/queue-worker.log for debugging
+
+ALTERNATIVE APPROACH (if timeout command not available):
+If your server doesn't support the 'timeout' command, use this instead:
+
+*/2 * * * * cd /path/to/your/laravel/project && php artisan queue:work database --queue=high,default --stop-when-empty --max-jobs=10 --max-time=240 >> /path/to/your/laravel/project/storage/logs/queue-worker.log 2>&1
+
+The --max-time=240 parameter will stop the worker after 4 minutes.
+
+
+// Updated cron job using the custom command:
+// */2 * * * * cd /path/to/your/laravel/project && php artisan queue:work-shared >> /path/to/your/laravel/project/storage/logs/queue-worker.log 2>&1
+
+// 12. Additional shared hosting considerations

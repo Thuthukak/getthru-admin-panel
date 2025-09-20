@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\Registration;
 use App\Models\PackagePrice;
 use App\Models\InvoiceEmailLog;
+use App\Jobs\SendInvoiceEmailJob;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -259,44 +260,40 @@ class InvoiceService
     }
 
     /**
-     * Send invoice via email
+     * Send invoice via email using job queue
      */
     public function sendInvoice(Invoice $invoice, bool $isManual = false)
     {
         try {
-            $emailSent = $this->sendInvoiceEmail($invoice);
-
-            if ($emailSent) {
-                $invoice->markAsSent();
-                
-                InvoiceEmailLog::create([
-                    'invoice_id' => $invoice->id,
-                    'email' => $invoice->customer_email,
-                    'sent_at' => now(),
-                    'status' => 'sent'
-                ]);
-
-                Log::info('Invoice sent successfully', [
-                    'invoice_id' => $invoice->id,
-                    'invoice_type' => $invoice->invoice_type,
-                    'manual' => $isManual
-                ]);
-
-                return true;
+            // Validate invoice
+            if (!$invoice->customer_email) {
+                throw new \Exception('Customer email is required');
             }
 
-            return false;
+            // Dispatch job to queue
+            SendInvoiceEmailJob::dispatch($invoice, $isManual);
+
+            Log::info('Invoice email job dispatched', [
+                'invoice_id' => $invoice->id,
+                'invoice_type' => $invoice->invoice_type,
+                'email' => $invoice->customer_email,
+                'manual' => $isManual
+            ]);
+
+            return true;
 
         } catch (\Exception $e) {
+            // Log immediate dispatch error
             InvoiceEmailLog::create([
                 'invoice_id' => $invoice->id,
                 'email' => $invoice->customer_email,
                 'sent_at' => now(),
-                'status' => 'failed',
-                'error_message' => $e->getMessage()
+                'status' => 'dispatch_failed',
+                'error_message' => $e->getMessage(),
+                'is_manual' => $isManual
             ]);
 
-            Log::error('Failed to send invoice', [
+            Log::error('Failed to dispatch invoice email job', [
                 'invoice_id' => $invoice->id,
                 'error' => $e->getMessage()
             ]);
@@ -306,7 +303,7 @@ class InvoiceService
     }
 
     /**
-     * Send invoices automatically based on billing dates
+     * Send invoices automatically with job queue
      */
     public function sendAutomaticInvoices()
     {
@@ -315,18 +312,55 @@ class InvoiceService
         // Get invoices that are due today and haven't been sent yet
         $invoices = Invoice::whereDate('billing_date', $today)
             ->where('status', 'pending')
+            ->where('is_active', true) // Only send active invoices
             ->get();
 
-        $sent = 0;
+        $dispatched = 0;
 
         foreach ($invoices as $invoice) {
-            if ($this->sendInvoice($invoice)) {
-                $sent++;
+            if ($this->sendInvoice($invoice, false)) {
+                $dispatched++;
             }
         }
 
-        return $sent;
+        Log::info('Automatic invoice email jobs dispatched', [
+            'date' => $today->toDateString(),
+            'jobs_dispatched' => $dispatched
+        ]);
+
+        return $dispatched;
     }
+
+    /**
+     * Retry failed invoice emails
+     */
+    public function retryFailedInvoices($hours = 24)
+    {
+        $cutoff = now()->subHours($hours);
+        
+        // Get invoices with failed emails in the last X hours
+        $failedInvoiceIds = InvoiceEmailLog::where('status', 'failed')
+            ->where('sent_at', '>=', $cutoff)
+            ->pluck('invoice_id')
+            ->unique();
+
+        $retried = 0;
+        
+        foreach ($failedInvoiceIds as $invoiceId) {
+            $invoice = Invoice::find($invoiceId);
+            if ($invoice && $this->sendInvoice($invoice, true)) {
+                $retried++;
+            }
+        }
+
+        Log::info('Failed invoice emails retried', [
+            'retried_count' => $retried,
+            'hours_back' => $hours
+        ]);
+
+        return $retried;
+    }
+
 
     /**
      * Mark invoices as overdue
@@ -373,17 +407,21 @@ class InvoiceService
     }
 
     /**
-     * Simulate sending invoice email (implement your actual email logic here)
+     * Send invoice email with PDF attachment
      */
-    private function sendInvoiceEmail(Invoice $invoice)
-    {
-        // In a real implementation, you would use Laravel's Mail facade
-        // Different email templates for deposit vs main invoices
-        // Mail::to($invoice->customer_email)->send(new InvoiceMail($invoice));
-        
-        // For now, just return true to simulate successful sending
-        return true;
-    }
+    // private function sendInvoiceEmail(Invoice $invoice)
+    // {
+    //     try {
+    //         Mail::to($invoice->customer_email)->send(new \App\Mail\InvoiceMail($invoice));
+    //         return true;
+    //     } catch (\Exception $e) {
+    //         Log::error('Failed to send invoice email', [
+    //             'invoice_id' => $invoice->id,
+    //             'error' => $e->getMessage()
+    //         ]);
+    //         return false;
+    //     }
+    // }
 
     /**
      * Get invoice statistics with breakdown by type

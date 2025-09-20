@@ -12,7 +12,10 @@ class InvoiceEmailLog extends Model
     protected $fillable = [
         'invoice_id',
         'email',
+        'attempt_number',
+        'is_manual',
         'sent_at',
+        'completed_at',
         'status',
         'error_message'
     ];
