@@ -1,4 +1,3 @@
-?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -74,11 +73,11 @@
 <body>
     <div class="header">
         <div class="company-info">
-            <h2>Your Company Name</h2>
+            <h2>Get Thru</h2>
             <p>123 Business Street<br>
             City, Province 1234<br>
             Phone: +27 11 123 4567<br>
-            Email: billing@yourcompany.com</p>
+            Email: sales@getthru.co.za</p>
         </div>
         
         <div class="invoice-info">
@@ -157,8 +156,8 @@
         <h4>Payment Methods:</h4>
         <p>
             <strong>Bank Transfer:</strong><br>
-            Account Name: Your Company Name<br>
-            Bank: Your Bank<br>
+            Account Name: Get Thru<br>
+            Bank: FNB<br>
             Account Number: 123456789<br>
             Branch Code: 123456<br>
             Reference: {{ $invoice->invoice_number }}
@@ -166,9 +165,7 @@
     </div>
 
     <div class="footer">
-        <p>Thank you for your business! | Questions? Contact us at billing@yourcompany.com | {{ $invoice->invoice_number }}</p>
+        <p>Thank you for your business! | Questions? Contact us at sales@getthru.co.za | {{ $invoice->invoice_number }}</p>
     </div>
 </body>
 </html>
-
-<?php
