@@ -14,7 +14,7 @@
       <!-- Overview Cards Row -->
       <div class="row mb-4">
         <div class="col-md-6 mb-3">
-          <div class="card bg-primary text-white h-100">
+          <div class="card bg-registration text-white h-100">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-center">
                 <div>
@@ -33,7 +33,7 @@
         </div>
         
         <div class="col-md-6 mb-3">
-          <div class="card bg-success text-white h-100">
+          <div class="card bg-revenue text-white h-100">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-center">
                 <div>
@@ -292,7 +292,7 @@ export default {
   computed: {
     registrationStatusData() {
       const total = this.installationStats.total || 1; // Avoid division by zero
-      const colors = ['#6c757d', '#0d6efd', '#ffc107', '#198754', '#dc3545'];
+      const colors = ['#6c757d', '#0d6efd', '#ffc107', '#53d826', '#dc3545'];
       
       return [
         {
@@ -330,7 +330,7 @@ export default {
     
     invoiceStatusData() {
       const total = this.invoiceStats.total_invoices || 1; // Avoid division by zero
-      const colors = ['#6c757d', '#0d6efd', '#198754', '#dc3545'];
+      const colors = ['#6c757d', '#0d6efd', '#53d826', '#dc3545'];
       
       return [
         {
@@ -507,6 +507,12 @@ export default {
 </script>
 
 <style scoped>
+.bg-registration {
+  background: #2688e0;
+}
+.bg-revenue {
+  background: #53d826;
+}
 .status-color {
   width: 12px;
   height: 12px;
