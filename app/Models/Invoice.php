@@ -44,6 +44,10 @@ class Invoice extends Model
         'is_recurring' => 'boolean'
     ];
 
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
     public function registration()
     {
         return $this->belongsTo(Registration::class);

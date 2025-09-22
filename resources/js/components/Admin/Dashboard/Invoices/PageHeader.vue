@@ -3,27 +3,6 @@
     <h1 class="page-title">Invoice Management</h1>
     <div class="header-actions">
       <button 
-        @click="$emit('generate-recurring')" 
-        class="btn btn-outline"
-        :disabled="loading"
-      >
-        Generate Recurring
-      </button>
-      <button 
-        @click="$emit('send-automatic')" 
-        class="btn btn-outline"
-        :disabled="loading"
-      >
-        Send Automatic
-      </button>
-      <button 
-        @click="$emit('mark-overdue')" 
-        class="btn btn-outline"
-        :disabled="loading"
-      >
-        Mark Overdue
-      </button>
-      <button 
         @click="$emit('create-invoice')" 
         class="btn btn-primary"
       >

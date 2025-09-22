@@ -112,7 +112,9 @@ export default {
       overdue_invoices: 0,
       total_revenue: 0,
       pending_revenue: 0,
-      overdue_revenue: 0
+      overdue_revenue: 0,
+      sent_revenue: 0,    // Add this
+      paid_revenue: 0
     })
     
     // Filters
