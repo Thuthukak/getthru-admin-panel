@@ -68,11 +68,11 @@
     </div>
 
     <!-- Installations Table -->
-    <div v-else class="card">
-      <div class="card-body">
+    <div v-else class="table-container">
+      <div class="">
         <div class="table-responsive">
-          <table class="table table-striped table-hover">
-            <thead class="table-dark">
+          <table class="installation-table">
+            <thead>
               <tr>
                 <th>Name</th>
                 <th>Contact</th>
@@ -175,7 +175,7 @@
         </div>
 
         <!-- Pagination -->
-        <div v-if="pagination.last_page > 1" class="d-flex justify-content-between align-items-center mt-3">
+        <div v-if="pagination.last_page > 1" class="d-flex justify-content-between align-items-center mx-3 mt-3">
           <div>
             Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }} results
           </div>
@@ -549,8 +549,39 @@ export default {
 </script>
 
 <style scoped>
-.table th {
+.table-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.installation-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.installation-table th {
+  background: #f9fafb;
+  padding: 12px 15px;
+  text-align: left;
   font-weight: 600;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+  user-select: none
+}
+.installation-table td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #e5e7eb;
+  user-select: none
+}
+
+.installation-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.installation-table tbody tr.selected {
+   background: #eff6ff;
 }
 
 .pagination {
