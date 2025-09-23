@@ -8,7 +8,7 @@
     </div>
     
     <!-- Filters Section -->
-    <div class="card mb-4">
+    <div class="card border-0 custom-shadow mb-4">
       <div class="card-body">
         <h5 class="card-title">Filters</h5>
         <div class="row g-3">
@@ -545,6 +545,9 @@ export default {
 </script>
 
 <style scoped>
+.custom-shadow {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
 .table-container {
   background: white;
   border-radius: 8px;
