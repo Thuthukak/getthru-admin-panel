@@ -156,7 +156,7 @@
                 <td>
                   <button 
                     @click="viewDetails(installation)" 
-                    class="btn-icon-only btn-primary me-1"
+                    class="btn-icon-only btn-primary me-2"
                     title="View Details"
                   >
                     <font-awesome-icon icon="eye" />
