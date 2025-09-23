@@ -52,7 +52,8 @@ import {
     faPenAlt,
     faPen,
     faCheckCircle,
-    faEllipsis
+    faEllipsis,
+    faImage
 } from "@fortawesome/free-solid-svg-icons";
 import {
     faTiktok,
@@ -105,7 +106,8 @@ library.add(
     faPen,
     faPenAlt,
     faEllipsis,
-    faPhone
+    faPhone,
+    faImage
 );
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';

@@ -1,5 +1,5 @@
 <template>
-  <div class="container mt-4">
+  <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h1 class="fw-bold mb-0">Installations</h1>
       <button @click="goToAddInstallation" class="btn btn-primary">
@@ -138,35 +138,35 @@
                     <button 
                       v-if="installation.status === 'in_progress'" 
                       @click="openImageUpload(installation)"
-                      class="btn btn-sm btn-outline-info"
+                      class="btn-icon-only btn-info"
                       title="Upload Images"
                     >
-                      <i class="bi bi-camera"></i>
+                      <font-awesome-icon icon="upload" />
                     </button>
                     <button 
                       v-if="installation.images_count > 0"
                       @click="viewImages(installation)"
-                      class="btn btn-sm btn-outline-secondary ms-1"
+                      class="btn-icon-only btn-secondary ms-1"
                       title="View Images"
                     >
-                      <i class="bi bi-eye"></i>
+                      <font-awesome-icon icon="image" />
                     </button>
                   </div>
                 </td>
                 <td>
                   <button 
                     @click="viewDetails(installation)" 
-                    class="btn btn-sm btn-outline-primary me-1"
+                    class="btn-icon-only btn-primary me-1"
                     title="View Details"
                   >
-                    <i class="bi bi-eye"></i>
+                    <font-awesome-icon icon="eye" />
                   </button>
                   <button 
                     @click="deleteInstallation(installation.id)" 
-                    class="btn btn-sm btn-outline-danger"
+                    class="btn-icon-only btn-danger"
                     title="Delete"
                   >
-                    <i class="bi bi-trash"></i>
+                    <font-awesome-icon icon="trash" />
                   </button>
                 </td>
               </tr>
@@ -256,6 +256,7 @@
 import axios from 'axios'
 import InstallationDetailsModal from './InstallationDetailsModal.vue'
 import ImageUploadModal from './ImageUploadModal.vue'
+import { fontString } from 'chart.js/helpers'
 
 export default {
   name: 'Installations',
@@ -596,7 +597,7 @@ export default {
   font-size: 14px;
 }
 
-.btn {
+.pagination .btn {
   display: inline-flex;
   align-items: center;
   padding: 8px 16px;
@@ -609,23 +610,23 @@ export default {
   transition: all 0.2s ease;
 }
 
-.btn:disabled {
+.pagination .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.btn-outline {
+.pagination .btn-outline {
   background: white;
   color: #374151;
   border-color: #d1d5db;
 }
 
-.btn-outline:hover:not(:disabled) {
+.pagination .btn-outline:hover:not(:disabled) {
   background: #f9fafb;
   border-color: #9ca3af;
 }
 
-.btn-sm {
+.pagination .btn-sm {
   padding: 4px 8px;
   font-size: 12px;
 }
@@ -650,5 +651,38 @@ export default {
 
 .progress {
   height: 1rem;
+}
+
+/* Icon-only button style */
+.btn-icon-only {
+  border: none !important;
+  background: none !important;
+  padding: 0 !important;
+  margin: 0 2px;
+  min-width: auto !important;
+  font-size: 16px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.btn-icon-only:hover {
+  opacity: 0.7;
+}
+
+/* Color variations for different button types */
+.btn-icon-only.btn-info {
+  color: #0dcaf0;
+}
+
+.btn-icon-only.btn-secondary {
+  color: #6c757d;
+}
+
+.btn-icon-only.btn-primary {
+  color: #0d6efd;
+}
+
+.btn-icon-only.btn-danger {
+  color: #dc3545;
 }
 </style>
