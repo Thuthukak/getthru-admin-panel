@@ -124,7 +124,9 @@ export default {
       service_type: '',
       date_from: '',
       date_to: '',
-      overdue: false
+      overdue: false,
+      customer_name: '',
+      customer_email: ''
     })
     
     // Pagination

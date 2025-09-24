@@ -5,8 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Registration;
 
-
-
 class customer extends Model
 {
 
@@ -23,7 +21,12 @@ class customer extends Model
     ];
 
     public function registrations()
-{
-    return $this->hasMany(Registration::class);
-}
+    {
+        return $this->hasMany(Registration::class);
+    }
+
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
 }

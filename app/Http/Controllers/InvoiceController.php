@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Invoice;
 use App\Models\Registration;
 use App\Models\PackagePrice;
+use App\Models\Customer;
 use App\Services\InvoiceService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -25,68 +26,104 @@ class InvoiceController extends Controller
      * Only shows invoices where is_active = 1
      */
     public function index(Request $request): JsonResponse
-    {
-        try {
-            $query = Invoice::with(['registration', 'packagePrice'])
-                ->where('is_active', true) // Only fetch active invoices (1 in database)
-                ->orderBy('created_at', 'desc');
+{
+    try {
+        // Remove the debug code since relationships work, and add specific query debugging
+        $query = Invoice::with(['registration', 'packagePrice', 'customer'])
+            ->where('is_active', true)
+            ->orderBy('created_at', 'desc');
 
-            // Apply filters
-            if ($request->filled('status')) {
-                $query->where('status', $request->status);
-            }
+        Log::info('Base query created successfully');
 
-            if ($request->filled('invoice_type')) {
-                $query->where('invoice_type', $request->invoice_type);
-            }
-
-            if ($request->filled('customer_email')) {
-                $query->where('customer_email', 'like', '%' . $request->customer_email . '%');
-            }
-
-            if ($request->filled('customer_name')) {
-                $query->where('customer_name', 'like', '%' . $request->customer_name . '%');
-            }
-
-            if ($request->filled('date_from')) {
-                $query->whereDate('billing_date', '>=', $request->date_from);
-            }
-
-            if ($request->filled('date_to')) {
-                $query->whereDate('billing_date', '<=', $request->date_to);
-            }
-
-            // Search across multiple fields
-            if ($request->filled('search')) {
-                $search = $request->search;
-                $query->where(function($q) use ($search) {
-                    $q->where('customer_name', 'like', "%{$search}%")
-                      ->orWhere('customer_email', 'like', "%{$search}%")
-                      ->orWhere('invoice_number', 'like', "%{$search}%")
-                      ->orWhere('customer_phone', 'like', "%{$search}%");
-                });
-            }
-
-            $invoices = $query->paginate($request->get('per_page', 15));
-
-            return response()->json([
-                'success' => true,
-                'data' => $invoices,
-                'message' => 'Active invoices retrieved successfully'
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Failed to retrieve active invoices', [
-                'error' => $e->getMessage(),
-                'filters' => $request->all()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to retrieve invoices'
-            ], 500);
+        // Apply filters one by one with debugging
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+            Log::info('Status filter applied: ' . $request->status);
         }
+
+        if ($request->filled('invoice_type')) {
+            $query->where('invoice_type', $request->invoice_type);
+            Log::info('Invoice type filter applied: ' . $request->invoice_type);
+        }
+
+        // Search by customer email using relationship
+        if ($request->filled('customer_email')) {
+            Log::info('Applying customer email filter: ' . $request->customer_email);
+            $query->whereHas('customer', function($q) use ($request) {
+                $q->where('email', 'like', '%' . $request->customer_email . '%');
+            });
+            Log::info('Customer email filter applied successfully');
+        }
+
+        // Search by customer name using relationship
+        if ($request->filled('customer_name')) {
+            Log::info('Applying customer name filter: ' . $request->customer_name);
+            $query->whereHas('customer', function($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->customer_name . '%')
+                  ->orWhere('surname', 'like', '%' . $request->customer_name . '%')
+                  ->orWhereRaw("CONCAT(name, ' ', surname) LIKE ?", ['%' . $request->customer_name . '%']);
+            });
+            Log::info('Customer name filter applied successfully');
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('billing_date', '>=', $request->date_from);
+            Log::info('Date from filter applied: ' . $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('billing_date', '<=', $request->date_to);
+            Log::info('Date to filter applied: ' . $request->date_to);
+        }
+
+        // Search across multiple fields - this is likely where the error occurs
+        if ($request->filled('search')) {
+            Log::info('Applying general search filter: ' . $request->search);
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                // Search in invoice fields
+                $q->where('invoice_number', 'like', "%{$search}%")
+                  // Search in customer relationship
+                  ->orWhereHas('customer', function($customerQuery) use ($search) {
+                      $customerQuery->where('name', 'like', "%{$search}%")
+                                  ->orWhere('surname', 'like', "%{$search}%")
+                                  ->orWhere('email', 'like', "%{$search}%")
+                                  ->orWhere('phone', 'like', "%{$search}%")
+                                  ->orWhereRaw("CONCAT(name, ' ', surname) LIKE ?", ["%{$search}%"]);
+                  })
+                  // Fallback to invoice columns for backward compatibility
+                  ->orWhere('customer_name', 'like', "%{$search}%")
+                  ->orWhere('customer_email', 'like', "%{$search}%")
+                  ->orWhere('customer_phone', 'like', "%{$search}%");
+            });
+            Log::info('General search filter applied successfully');
+        }
+
+        Log::info('About to execute paginate query');
+        $invoices = $query->paginate($request->get('per_page', 15));
+        Log::info('Paginate query executed successfully');
+
+        return response()->json([
+            'success' => true,
+            'data' => $invoices,
+            'message' => 'Active invoices retrieved successfully'
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Failed to retrieve active invoices', [
+            'error' => $e->getMessage(),
+            'line' => $e->getLine(),
+            'file' => $e->getFile(),
+            'trace' => $e->getTraceAsString(),
+            'filters' => $request->all()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to retrieve invoices'
+        ], 500);
     }
+}
 
     /**
      * Get all invoices (including inactive) - for admin purposes
@@ -94,10 +131,10 @@ class InvoiceController extends Controller
     public function all(Request $request): JsonResponse
     {
         try {
-            $query = Invoice::with(['registration', 'packagePrice'])
+            $query = Invoice::with(['registration', 'packagePrice', 'customer'])
                 ->orderBy('created_at', 'desc');
 
-            // Apply same filters as index method...
+            // Apply same filters as index method
             if ($request->filled('status')) {
                 $query->where('status', $request->status);
             }
@@ -110,7 +147,50 @@ class InvoiceController extends Controller
                 $query->where('is_active', $request->is_active === 'true' ? true : false);
             }
 
-            // ... other filters ...
+            // Search by customer email using relationship
+            if ($request->filled('customer_email')) {
+                $query->whereHas('customer', function($q) use ($request) {
+                    $q->where('email', 'like', '%' . $request->customer_email . '%');
+                });
+            }
+
+            // Search by customer name using relationship
+            if ($request->filled('customer_name')) {
+                $query->whereHas('customer', function($q) use ($request) {
+                    $q->where('name', 'like', '%' . $request->customer_name . '%')
+                      ->orWhere('surname', 'like', '%' . $request->customer_name . '%')
+                      ->orWhereRaw("CONCAT(name, ' ', surname) LIKE ?", ['%' . $request->customer_name . '%']);
+                });
+            }
+
+            if ($request->filled('date_from')) {
+                $query->whereDate('billing_date', '>=', $request->date_from);
+            }
+
+            if ($request->filled('date_to')) {
+                $query->whereDate('billing_date', '<=', $request->date_to);
+            }
+
+            // Search across multiple fields including customer relationship
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    // Search in invoice fields
+                    $q->where('invoice_number', 'like', "%{$search}%")
+                      // Search in customer relationship
+                      ->orWhereHas('customer', function($customerQuery) use ($search) {
+                          $customerQuery->where('name', 'like', "%{$search}%")
+                                      ->orWhere('surname', 'like', "%{$search}%")
+                                      ->orWhere('email', 'like', "%{$search}%")
+                                      ->orWhere('phone', 'like', "%{$search}%")
+                                      ->orWhereRaw("CONCAT(name, ' ', surname) LIKE ?", ["%{$search}%"]);
+                      })
+                      // Fallback to invoice columns for backward compatibility
+                      ->orWhere('customer_name', 'like', "%{$search}%")
+                      ->orWhere('customer_email', 'like', "%{$search}%")
+                      ->orWhere('customer_phone', 'like', "%{$search}%");
+                });
+            }
 
             $invoices = $query->paginate($request->get('per_page', 15));
 
@@ -138,7 +218,7 @@ class InvoiceController extends Controller
     public function getByRegistration($registrationId): JsonResponse
     {
         try {
-            $invoices = Invoice::with(['registration', 'packagePrice'])
+            $invoices = Invoice::with(['registration', 'packagePrice', 'customer'])
                 ->where('registration_id', $registrationId)
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -188,7 +268,7 @@ class InvoiceController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Invoice activated successfully',
-                'data' => $invoice->load(['registration', 'packagePrice'])
+                'data' => $invoice->load(['registration', 'packagePrice', 'customer'])
             ]);
 
         } catch (\Exception $e) {
@@ -204,8 +284,6 @@ class InvoiceController extends Controller
         }
     }
 
-
-
     /**
      * Store a newly created invoice
      */
@@ -213,7 +291,7 @@ class InvoiceController extends Controller
     {
         $request->validate([
             'registration_id' => 'required|exists:registrations,id',
-            'package_price_id' => 'nullable|exists:package_prices,id', // Allow direct package_price_id
+            'package_price_id' => 'nullable|exists:package_prices,id',
             'amount' => 'required|numeric|min:0',
             'billing_date' => 'required|date',
             'due_date' => 'required|date|after_or_equal:billing_date',
@@ -222,7 +300,7 @@ class InvoiceController extends Controller
         ]);
 
         try {
-            $registration = Registration::with('packagePrice')->findOrFail($request->registration_id);
+            $registration = Registration::with(['packagePrice', 'customer'])->findOrFail($request->registration_id);
             
             // Use provided package_price_id or get from registration
             $packagePriceId = $request->package_price_id ?: $registration->package_price_id;
@@ -244,12 +322,22 @@ class InvoiceController extends Controller
 
             $invoice = Invoice::create([
                 'registration_id' => $registration->id,
-                'customer_name' => $registration->full_name,
-                'customer_email' => $registration->email,
-                'customer_phone' => $registration->phone,
-                'customer_address' => $registration->address,
+                'customer_id' => $registration->customer_id,
+                // Keep individual columns for backward compatibility
+                'customer_name' => $registration->customer ? 
+                    $registration->customer->name . ' ' . $registration->customer->surname : 
+                    $registration->full_name,
+                'customer_email' => $registration->customer ? 
+                    $registration->customer->email : 
+                    $registration->email,
+                'customer_phone' => $registration->customer ? 
+                    $registration->customer->phone : 
+                    $registration->phone,
+                'customer_address' => $registration->customer ? 
+                    $registration->customer->address : 
+                    $registration->address,
                 'invoice_number' => (new Invoice())->generateInvoiceNumber(),
-                'package_price_id' => $packagePriceId, // Store package_price_id instead of individual fields
+                'package_price_id' => $packagePriceId,
                 'amount' => $request->amount,
                 'payment_period' => $registration->payment_period,
                 'billing_date' => $request->billing_date,
@@ -266,7 +354,7 @@ class InvoiceController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Invoice created successfully',
-                'data' => $invoice->load(['registration', 'packagePrice'])
+                'data' => $invoice->load(['registration', 'packagePrice', 'customer'])
             ], 201);
 
         } catch (\Exception $e) {
@@ -283,7 +371,7 @@ class InvoiceController extends Controller
     public function show(Invoice $invoice): JsonResponse
     {
         try {
-            $invoice->load(['registration', 'packagePrice', 'emailLogs']);
+            $invoice->load(['registration', 'packagePrice', 'customer', 'emailLogs']);
 
             return response()->json([
                 'success' => true,
@@ -339,7 +427,7 @@ class InvoiceController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Invoice updated successfully',
-                'data' => $invoice->load(['registration', 'packagePrice'])
+                'data' => $invoice->load(['registration', 'packagePrice', 'customer'])
             ]);
 
         } catch (\Exception $e) {
@@ -530,19 +618,24 @@ class InvoiceController extends Controller
     public function getRegistrations(): JsonResponse
     {
         try {
-            $registrations = Registration::with('packagePrice')
+            $registrations = Registration::with(['packagePrice', 'customer'])
                 ->where('status', 'processed')
-                ->select('id', 'name', 'surname', 'email', 'package_price_id')
+                ->select('id', 'name', 'surname', 'email', 'package_price_id', 'customer_id')
                 ->get()
                 ->map(function ($registration) {
                     return [
                         'id' => $registration->id,
-                        'name' => $registration->full_name,
-                        'email' => $registration->email,
+                        'name' => $registration->customer ? 
+                            $registration->customer->name . ' ' . $registration->customer->surname : 
+                            $registration->full_name,
+                        'email' => $registration->customer ? 
+                            $registration->customer->email : 
+                            $registration->email,
                         'package_price_id' => $registration->package_price_id,
                         'service_type' => $registration->packagePrice?->service_type,
                         'package' => $registration->packagePrice?->package,
-                        'price' => $registration->packagePrice?->price
+                        'price' => $registration->packagePrice?->price,
+                        'customer_id' => $registration->customer_id
                     ];
                 });
 

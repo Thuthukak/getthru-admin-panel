@@ -70,7 +70,12 @@
             >
           </td>
           <td>{{ invoice.invoice_number }}</td>
-          <td>{{ invoice.customer_name }}</td>
+          <td>
+            {{ invoice.customer ? 
+                `${invoice.customer.name} ${invoice.customer.surname}` : 
+                invoice.customer_name 
+            }}
+          </td>
           <td>{{ formatServiceInfo(invoice) }}</td>
           <td>R{{ formatAmount(invoice.amount) }}</td>
           <td>{{ formatDate(invoice.billing_date) }}</td>

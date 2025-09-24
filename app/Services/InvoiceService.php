@@ -41,6 +41,7 @@ class InvoiceService
                 Log::info('Pay later invoice created', [
                     'registration_id' => $registration->id,
                     'invoice_id' => $invoice->id,
+                    'customer_name' => $registration->full_name,
                     'amount' => $mainInvoiceAmount,
                     'deposit_included' => self::FULL_DEPOSIT,
                     'is_active' => false
@@ -94,6 +95,7 @@ class InvoiceService
 
         return Invoice::create([
             'registration_id' => $registration->id,
+            'customer_id' => $registration->customer_id,
             'customer_name' => $registration->full_name,
             'customer_email' => $registration->email,
             'customer_phone' => $registration->phone,
@@ -136,6 +138,7 @@ class InvoiceService
 
         return Invoice::create([
             'registration_id' => $registration->id,
+            'customer_id' => $registration->customer_id,
             'customer_name' => $registration->full_name,
             'customer_email' => $registration->email,
             'customer_phone' => $registration->phone,
@@ -217,6 +220,7 @@ class InvoiceService
 
                 $newInvoice = Invoice::create([
                     'registration_id' => $registration->id,
+                    'customer_id' => $registration->customer_id,
                     'customer_name' => $registration->full_name,
                     'customer_email' => $registration->email,
                     'customer_phone' => $registration->phone,
@@ -245,6 +249,7 @@ class InvoiceService
                 Log::info('Recurring invoice generated', [
                     'registration_id' => $registration->id,
                     'invoice_id' => $newInvoice->id,
+                    'customer_name' => $registration->full_name,
                     'amount' => $amount
                 ]);
 

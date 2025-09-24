@@ -4,6 +4,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Customer;
 
 class Invoice extends Model
 {
@@ -11,6 +12,7 @@ class Invoice extends Model
 
     protected $fillable = [
         'registration_id',
+        'customer_id',
         'customer_name',
         'customer_email',
         'customer_phone',

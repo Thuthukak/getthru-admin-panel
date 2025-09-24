@@ -10,6 +10,22 @@
         >
       </div>
       <div class="filter-group">
+        <input
+          :value="filters.customer_name"
+          @input="updateFilter('customer_name', $event.target.value)"
+          placeholder="Customer name..."
+          class="input-field"
+        >
+      </div>
+      <div class="filter-group">
+        <input
+          :value="filters.customer_email"
+          @input="updateFilter('customer_email', $event.target.value)"
+          placeholder="Customer email..."
+          class="input-field"
+        >
+      </div>
+      <div class="filter-group">
         <select 
           :value="filters.status"
           @change="updateFilter('status', $event.target.value)"

@@ -77,6 +77,7 @@ class CustomerController extends Controller
 
     public function store(Request $request)
     {
+        Log::info('we are in the customer store method' . $request);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'surname' => 'required|string|max:255',
@@ -86,6 +87,8 @@ class CustomerController extends Controller
             'location' => 'required|string|max:255',
             'address' => 'required|string',
         ]);
+
+        Log::info('validated data' . $validated);
 
         $customer = Customer::create($validated);
         

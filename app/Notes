@@ -29,3 +29,7 @@ The --max-time=240 parameter will stop the worker after 4 minutes.
 // */2 * * * * cd /path/to/your/laravel/project && php artisan queue:work-shared >> /path/to/your/laravel/project/storage/logs/queue-worker.log 2>&1
 
 // 12. Additional shared hosting considerations
+
+
+24/09/2025 10:38
+Fix save customer from invoice create/edit modal

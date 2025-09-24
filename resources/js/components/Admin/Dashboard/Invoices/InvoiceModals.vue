@@ -130,7 +130,7 @@
       @save="saveCustomer"
     />
 
-    <!-- View Modal -->
+    <!-- View Modal - Updated to use customer relationship data -->
     <div v-if="showView" class="modal-overlay" @click="$emit('close')">
       <div class="modal modal-lg" @click.stop>
         <div class="modal-header">
@@ -142,6 +142,46 @@
             <div class="detail-section">
               <h4>Invoice Information</h4>
               <div class="detail-grid">
+                <div class="detail-item">
+                  <label>Name:</label>
+                  <span>
+                    {{ selectedInvoice.customer ? 
+                        `${selectedInvoice.customer.name} ${selectedInvoice.customer.surname}` : 
+                        selectedInvoice.customer_name 
+                    }}
+                  </span>
+                </div>
+                <div class="detail-item">
+                  <label>Email:</label>
+                  <span>
+                    {{ selectedInvoice.customer ? 
+                        selectedInvoice.customer.email : 
+                        selectedInvoice.customer_email 
+                    }}
+                  </span>
+                </div>
+                <div class="detail-item">
+                  <label>Phone:</label>
+                  <span>
+                    {{ selectedInvoice.customer ? 
+                        selectedInvoice.customer.phone : 
+                        selectedInvoice.customer_phone 
+                    }}
+                  </span>
+                </div>
+                <div class="detail-item" v-if="selectedInvoice.customer?.address || selectedInvoice.customer_address">
+                  <label>Address:</label>
+                  <span>
+                    {{ selectedInvoice.customer ? 
+                        selectedInvoice.customer.address : 
+                        selectedInvoice.customer_address 
+                    }}
+                  </span>
+                </div>
+                <div class="detail-item" v-if="selectedInvoice.package_price">
+                  <label>Service:</label>
+                  <span>{{ formatServiceType(selectedInvoice.package_price.service_type) }} - {{ selectedInvoice.package_price.package }}</span>
+                </div>
                 <div class="detail-item">
                   <label>Invoice Number:</label>
                   <span>{{ selectedInvoice.invoice_number }}</span>
